@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  防止 IL2CPP / 引擎代码剥离误删运行时才用到的类型。
+  我们的碰撞体、粒子、物理查询都是运行时通过 AddComponent / CreatePrimitive 创建的，
+  静态分析看不到引用，如果不保留，WebGL 包里就会报
+  "Can't add component because class 'SphereCollider' doesn't exist!"。
+-->
+<linker>
+  <assembly fullname="UnityEngine.PhysicsModule" preserve="all" />
+  <assembly fullname="UnityEngine.AudioModule" preserve="all" />
+  <assembly fullname="UnityEngine.ParticleSystemModule" preserve="all" />
+  <assembly fullname="UnityEngine.AnimationModule" preserve="all" />
+  <assembly fullname="UnityEngine.IMGUIModule" preserve="all" />
+</linker>
