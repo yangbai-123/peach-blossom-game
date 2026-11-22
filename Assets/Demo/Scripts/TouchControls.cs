@@ -52,7 +52,7 @@ public class TouchControls : MonoBehaviour
     }
 
     // 按钮在屏幕上的位置（左上原点）
-    Rect AttackRect, JumpRect, SprintRect;
+    Rect AttackRect, JumpRect, SprintRect, ViewRect;
 
     void Awake()
     {
@@ -80,6 +80,7 @@ public class TouchControls : MonoBehaviour
         AttackRect = new Rect(Screen.width - 150f * s, Screen.height - 170f * s, 120f * s, 120f * s);
         JumpRect = new Rect(Screen.width - 290f * s, Screen.height - 130f * s, 96f * s, 96f * s);
         SprintRect = new Rect(Screen.width - 160f * s, Screen.height - 320f * s, 88f * s, 88f * s);
+        ViewRect = new Rect(Screen.width - 112f * s, 24f * s, 88f * s, 88f * s);
 
         baseRadius = 78f * s;
         knobRadius = 34f * s;
@@ -159,6 +160,7 @@ public class TouchControls : MonoBehaviour
         if (InRect(pos, AttackRect)) { MobileInput.PressAttack(); _buttonFinger = id; return; }
         if (InRect(pos, JumpRect)) { MobileInput.PressJump(); _buttonFinger = id; return; }
         if (InRect(pos, SprintRect)) { MobileInput.Sprint = !MobileInput.Sprint; _buttonFinger = id; return; }
+        if (InRect(pos, ViewRect)) { MobileInput.PressViewToggle(); _buttonFinger = id; return; }
 
         if (_moveFinger < 0 && Vector2.Distance(pos, _baseCenter) <= baseRadius * 1.7f)
         {
@@ -180,11 +182,16 @@ public class TouchControls : MonoBehaviour
             if (offset.magnitude > baseRadius) offset = offset.normalized * baseRadius;
 
             _knobOffset = offset;
-            MobileInput.Move = offset / baseRadius;
+
+            // GUI 坐标 y 向下，移动方向 y 向上，这里要翻转，
+            // 否则推摇杆向上会往后退。
+            MobileInput.Move = new Vector2(offset.x / baseRadius, -offset.y / baseRadius);
         }
-        else if (id == _lookFinger && delta.sqrMagnitude > 0.01f)
+        else if (id == _lookFinger && delta.sqrMagnitude > 0.25f)
         {
-            MobileInput.LookDelta = new Vector2(delta.x * lookSensitivity, delta.y * lookSensitivity);
+            // 换算成角度：横扫半个屏幕约转 90°，手感与鼠标接近
+            float degPerPixel = 180f / Mathf.Max(320f, Screen.width);
+            MobileInput.LookDelta = new Vector2(delta.x * degPerPixel, delta.y * degPerPixel);
         }
     }
 
@@ -227,6 +234,7 @@ public class TouchControls : MonoBehaviour
         DrawButton(SprintRect, "冲刺", MobileInput.Sprint
             ? new Color(1f, 0.85f, 0.4f, 0.85f)
             : new Color(1f, 1f, 1f, 0.28f));
+        DrawButton(ViewRect, "视角", new Color(0.75f, 0.85f, 1f, 0.45f));
     }
 
     void DrawButton(Rect r, string text, Color color)

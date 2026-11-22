@@ -267,8 +267,7 @@ public class GameBootstrap : MonoBehaviour
 
         foreach (var spot in spots)
         {
-            var petal = Prim(PrimitiveType.Cube, "Petal", spot,
-                new Vector3(0.42f, 0.06f, 0.42f), new Color(1f, 0.72f, 0.85f), false);
+            var petal = BuildPetalVisual(spot);
 
             var trigger = petal.AddComponent<BoxCollider>();
             trigger.isTrigger = true;
@@ -279,6 +278,81 @@ public class GameBootstrap : MonoBehaviour
 
         if (GameManager.Instance != null)
             GameManager.Instance.totalPetals = spots.Length;
+    }
+
+    /// <summary>
+    /// 一片会飘的花瓣：主瓣 + 两片错开的副瓣 + 花蕊，比一个方块更像花。
+    /// </summary>
+    GameObject BuildPetalVisual(Vector3 position)
+    {
+        var root = new GameObject("Petal");
+        root.transform.SetParent(_root);
+        root.transform.position = position;
+        root.transform.localScale = new Vector3(0.34f, 0.40f, 0.34f);
+
+        var mesh = PetalMesh.Create();
+
+        var pink = MaterialLibrary.For(new Color(1f, 0.72f, 0.85f));
+        var pinkLight = MaterialLibrary.For(new Color(1f, 0.86f, 0.93f));
+
+        AddPetalPart(root.transform, mesh, pink, Vector3.zero, new Vector3(0f, 0f, 0f), 1f);
+        AddPetalPart(root.transform, mesh, pinkLight, new Vector3(0.10f, -0.02f, 0.04f), new Vector3(12f, 38f, 22f), 0.82f);
+        AddPetalPart(root.transform, mesh, pinkLight, new Vector3(-0.10f, -0.02f, 0.04f), new Vector3(-10f, -40f, -20f), 0.78f);
+
+        // 花蕊：根部一颗小球 + 三根细丝
+        var core = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        core.name = "Core";
+        core.transform.SetParent(root.transform, false);
+        core.transform.localPosition = new Vector3(0f, 0.04f, 0.02f);
+        core.transform.localScale = Vector3.one * 0.16f;
+
+        var coreCol = core.GetComponent<Collider>();
+        if (coreCol != null) { coreCol.enabled = false; Destroy(coreCol); }
+
+        var coreRenderer = core.GetComponent<Renderer>();
+        if (coreRenderer != null)
+        {
+            var mat = MaterialLibrary.For(new Color(1f, 0.92f, 0.55f));
+            if (mat != null) coreRenderer.sharedMaterial = mat;
+        }
+
+        for (int i = 0; i < 3; i++)
+        {
+            var stamen = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            stamen.name = "Stamen";
+            stamen.transform.SetParent(root.transform, false);
+            stamen.transform.localPosition = new Vector3(Mathf.Cos(i * 2.1f) * 0.06f, 0.14f, Mathf.Sin(i * 2.1f) * 0.06f);
+            stamen.transform.localRotation = Quaternion.Euler(18f * Mathf.Cos(i * 2.1f), 0f, 18f * Mathf.Sin(i * 2.1f));
+            stamen.transform.localScale = new Vector3(0.012f, 0.07f, 0.012f);
+
+            var stamenCol = stamen.GetComponent<Collider>();
+            if (stamenCol != null) { stamenCol.enabled = false; Destroy(stamenCol); }
+
+            var stamenRenderer = stamen.GetComponent<Renderer>();
+            if (stamenRenderer != null)
+            {
+                var mat = MaterialLibrary.For(new Color(1f, 0.95f, 0.75f));
+                if (mat != null) stamenRenderer.sharedMaterial = mat;
+            }
+        }
+
+        return root;
+    }
+
+    void AddPetalPart(Transform parent, Mesh mesh, Material material,
+        Vector3 localPosition, Vector3 localEuler, float scale)
+    {
+        var go = new GameObject("PetalPart");
+        go.transform.SetParent(parent, false);
+        go.transform.localPosition = localPosition;
+        go.transform.localRotation = Quaternion.Euler(localEuler);
+        go.transform.localScale = Vector3.one * scale;
+
+        var filter = go.AddComponent<MeshFilter>();
+        filter.sharedMesh = mesh;
+
+        var renderer = go.AddComponent<MeshRenderer>();
+        if (material != null) renderer.sharedMaterial = material;
     }
 
     void BuildClouds()

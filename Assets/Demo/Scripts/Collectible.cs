@@ -1,8 +1,9 @@
 using UnityEngine;
 
 /// <summary>
-/// 可拾取的花瓣。触发器 + 距离双保险：就算触发器因为 CharacterController 的移动方式没触发，
-/// 靠近到 1.1m 也会被拾取，避免出现"看得见吃不到"。
+/// 可拾取的花瓣。
+/// 触发器 + 距离双保险：就算 CharacterController 的触发器事件没触发，
+/// 靠近到 pickupRadius 也会被拾取，避免出现"看得见吃不到"。
 /// </summary>
 public class Collectible : MonoBehaviour
 {
@@ -30,6 +31,11 @@ public class Collectible : MonoBehaviour
 
         transform.Rotate(Vector3.up, spinSpeed * Time.deltaTime, Space.World);
 
+        // 轻微摇摆，像被风吹起来的花瓣
+        float sway = Mathf.Sin(Time.time * bobSpeed * 0.8f + _phase) * 8f;
+        var euler = transform.eulerAngles;
+        transform.rotation = Quaternion.Euler(sway, euler.y, sway * 0.6f);
+
         float y = _basePosition.y + Mathf.Sin(Time.time * bobSpeed + _phase) * bobAmplitude;
         transform.position = new Vector3(_basePosition.x, y, _basePosition.z);
 
@@ -52,7 +58,7 @@ public class Collectible : MonoBehaviour
         GameManager.Instance.Collect();
 
         Sfx.Play(Sfx.Pickup, 0.8f, Random.Range(0.95f, 1.08f));
-        Fx.Burst(transform.position, new Color(1f, 0.72f, 0.85f), 12, 2.8f, 0.5f, 0.07f, -3f);
+        Fx.Burst(transform.position, new Color(1f, 0.72f, 0.85f), 14, 2.8f, 0.55f, 0.07f, -3f);
 
         Destroy(gameObject);
     }
