@@ -60,7 +60,9 @@ public class PlayerCombat : MonoBehaviour
 
         if (_phase == Phase.Idle)
         {
-            if (Input.GetMouseButtonDown(0) || Input.GetKeyDown(KeyCode.J) || MobileInput.ConsumeAttack()) BeginSwing();
+            bool touchAttack = MobileInput.Enabled && MobileInput.ConsumeAttack();
+
+        if (Input.GetMouseButtonDown(0) || Input.GetKeyDown(KeyCode.J) || touchAttack) BeginSwing();
             return;
         }
 

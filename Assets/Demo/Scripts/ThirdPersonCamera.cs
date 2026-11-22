@@ -31,7 +31,15 @@ public class ThirdPersonCamera : MonoBehaviour
     {
         if (target == null) return;
 
-        // 锁定鼠标时才有意义；未锁定就当作不转视角。触屏设备用右侧拖动。
+        // 键鼠：锁定鼠标时用鼠标转视角（PC 默认）
+        if (Cursor.lockState == CursorLockMode.Locked)
+        {
+            _yaw += Input.GetAxis("Mouse X") * mouseSensitivity;
+            _pitch -= Input.GetAxis("Mouse Y") * mouseSensitivity;
+            _pitch = Mathf.Clamp(_pitch, minPitch, maxPitch);
+        }
+
+        // 触屏：右侧拖动，叠加在上面
         if (MobileInput.Enabled)
         {
             Vector2 look = MobileInput.LookDelta;
@@ -42,12 +50,6 @@ public class ThirdPersonCamera : MonoBehaviour
                 _pitch = Mathf.Clamp(_pitch, minPitch, maxPitch);
             }
             MobileInput.LookDelta = Vector2.zero;
-        }
-        else if (Cursor.lockState == CursorLockMode.Locked)
-        {
-            _yaw += Input.GetAxis("Mouse X") * mouseSensitivity;
-            _pitch -= Input.GetAxis("Mouse Y") * mouseSensitivity;
-            _pitch = Mathf.Clamp(_pitch, minPitch, maxPitch);
         }
 
         // 滚轮缩放

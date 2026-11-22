@@ -35,7 +35,21 @@ public class TouchControls : MonoBehaviour
 #if UNITY_WEBGL && !UNITY_EDITOR
     [DllImport("__Internal")] static extern int DSH_CanvasInputWidth();
     [DllImport("__Internal")] static extern int DSH_CanvasInputHeight();
+    [DllImport("__Internal")] static extern int DSH_IsTouchOnly();
 #endif
+
+    /// <summary>是不是触屏为主的设备（手机/平板）。</summary>
+    static bool IsTouchDevice()
+    {
+#if UNITY_WEBGL && !UNITY_EDITOR
+        try
+        {
+            if (DSH_IsTouchOnly() == 1) return true;
+        }
+        catch { }
+#endif
+        return Application.isMobilePlatform;
+    }
 
     // 按钮在屏幕上的位置（左上原点）
     Rect AttackRect, JumpRect, SprintRect;
@@ -49,8 +63,10 @@ public class TouchControls : MonoBehaviour
     {
         if (autoDetect)
         {
-            bool touch = Input.touchSupported;
-            MobileInput.Enabled = touch || Application.isMobilePlatform;
+            // 只有触屏为主的设备才启用触屏输入。
+            // 之前用 Input.touchSupported 判定，带触摸屏的 Windows 笔记本也会被当成手机，
+            // 导致键盘失效、鼠标点击被摇杆抢走。
+            MobileInput.Enabled = IsTouchDevice();
         }
 
         Layout();
@@ -111,15 +127,11 @@ public class TouchControls : MonoBehaviour
 
         Layout();
 
+        // 只处理真实触摸，不再用鼠标模拟——PC 端鼠标要留给视角和攻击
         if (Input.touchCount == 0)
         {
-            // 桌面用鼠标模拟，方便测试
-            bool mouseDown = Input.GetMouseButton(0);
-            Vector2 mp = new Vector2(Input.mousePosition.x, Screen.height - Input.mousePosition.y);
-
-            if (Input.GetMouseButtonDown(0)) OnPress(mp, 9000);
-            if (mouseDown) OnDrag(mp, 9000, Vector2.zero);
-            if (!mouseDown) OnRelease(9000);
+            if (_draggingKnob) OnRelease(_moveFinger);
+            MobileInput.Move = Vector2.zero;
             return;
         }
 

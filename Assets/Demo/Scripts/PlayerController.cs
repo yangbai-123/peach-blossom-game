@@ -43,22 +43,16 @@ public class PlayerController : MonoBehaviour
             return;
         }
 
-        // 1. 原始输入（触屏优先，没有触屏走键鼠）
-        Vector2 raw;
-        bool sprint;
-        bool jumpPressed;
+        // 1. 原始输入：键盘永远可用，触屏只是在有实际输入时覆盖
+        Vector2 raw = new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical"));
+        bool sprint = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+        bool jumpPressed = Input.GetButtonDown("Jump");
 
         if (MobileInput.Enabled)
         {
-            raw = MobileInput.Move;
-            sprint = MobileInput.Sprint;
-            jumpPressed = MobileInput.ConsumeJump();
-        }
-        else
-        {
-            raw = new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical"));
-            sprint = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
-            jumpPressed = Input.GetButtonDown("Jump");
+            if (MobileInput.Move.sqrMagnitude > 0.0025f) raw = MobileInput.Move;
+            sprint |= MobileInput.Sprint;
+            jumpPressed |= MobileInput.ConsumeJump();
         }
 
         if (raw.sqrMagnitude > 1f) raw.Normalize();

@@ -13,5 +13,15 @@ mergeInto(LibraryManager.library, {
     var dpr = window.devicePixelRatio || 1;
     var h = c && c.clientHeight ? c.clientHeight : window.innerHeight;
     return Math.floor(h * dpr);
+  },
+
+  // 1 = 粗指针设备（手机/平板），0 = 精确指针（鼠标）。
+  // 比 UA 判断更可靠：带触摸屏的 Windows 笔记本仍然是 fine，手机一定是 coarse。
+  DSH_IsTouchOnly: function () {
+    try {
+      if (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) return 1;
+      if (navigator.maxTouchPoints > 0 && !window.matchMedia('(pointer: fine)').matches) return 1;
+    } catch (e) { }
+    return 0;
   }
 });
