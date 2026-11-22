@@ -55,7 +55,15 @@
 | 浮空岛 ×3 | y = 7 / 9.5 / 12.5，各藏一片花瓣，靠弹跳台上岛 |
 | 敌人 ×7 | 紫色妖物，分布在平地与山道 |
 
-**上岛路线**：平地 (18, 0, -8) 的弹跳台 → 一号岛 → 岛上弹跳台 → 三号岛；(-18, 0, -6) 的弹跳台直达二号岛。
+**上岛路线**：地图上有三个金色弹跳台，站上去就会被弹到对应浮空岛（会自动对准落点）：
+
+| 弹跳台 | 位置 | 落点 |
+| --- | --- | --- |
+| 1 号 | (18, 0, -8) | 一号岛（y=7） |
+| 2 号 | (-18, 0, 0) | 二号岛（y=9.5） |
+| 3 号 | (0, 0, -16) | 三号岛（y=12.5） |
+
+弹跳台用**距离判定**而不是触发器，并按抛物线反解横向速度——站上去什么都不按也能准确落到岛上。
 
 ## 代码结构
 
@@ -141,6 +149,36 @@ python -m http.server 8000
 5. 攻击动作：在 `PlayerCombat.Swung` 事件里触发 `animator.SetTrigger("Attack")` 即可。
 
 模型来源建议用 CC0 或商用许可的资源（Mixamo 的动作库对个人免费），不要把有版权的模型打进公开版本。
+
+## 调试开关
+
+| 按键 | 作用 |
+| --- | --- |
+| `1` / `2` / `3` | 传送到对应弹跳台，用来快速验证上岛动线 |
+
+## 免费 3D 模型资源（可商用）
+
+当前角色和怪物都是程序化图元拼的。想换成真实模型，下面这些来源可以直接用：
+
+| 来源 | 内容 | 授权 | 链接 |
+| --- | --- | --- | --- |
+| **Quaternius** | 低多边形角色、怪物、动画（Ultimate Modular Characters / Monsters） | CC0（QAL） | <https://quaternius.com/license.html> |
+| **Kenney** | 角色、怪物、道具，成套打包 | CC0 | <https://kenney.nl/assets> |
+| **KayKit** | 低多边形角色与怪物，风格统一 | CC0 | <https://kaylousberg.itch.io> |
+| **Poly Pizza** | CC0/CC-BY 模型聚合搜索 | 按条目 | <https://poly.pizza> |
+| **Mixamo** | 人形角色 + 大量动作库 | 免费商用，但**不能把模型文件本身再分发** | <https://helpx.adobe.com/creative-cloud/faq/mixamo-faq.html> |
+
+**推荐组合**：Quaternius 的 `Ultimate Modular Characters`（角色）+ `Ultimate Monsters`（怪物），都是 CC0，FBX 直接拖进 Unity，比例和这张低多边形地图也搭。
+
+注意 Mixamo：可以用于游戏，但不能把下载的模型作为素材再分发，别直接放进公开仓库的 `Assets` 里。
+
+### 替换步骤
+
+1. 把 FBX 拖进 `Assets/Demo/Models/`
+2. 选中 `Player`，禁用或删除 `HumanoidRig` 组件
+3. 模型挂到 `Player` 下当子物体，缩放对齐（角色高约 1.8）
+4. 人形模型加 `Animator` + Avatar，拖到 `PlayerStateMachine.animator` 字段，会自动写 `State` / `Speed` / `Grounded`
+5. 敌人同理：替换 `BuildEnemies()` 里生成的图元子物体，保留 `Enemy` / `Health` / `CharacterController` 与 `Hitbox` 子物体
 
 ## 调参速查
 

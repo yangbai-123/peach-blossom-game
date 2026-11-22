@@ -167,10 +167,11 @@ public class GameBootstrap : MonoBehaviour
         Island(new Vector3(-18f, 9.5f, -14f), 9f);
         Island(new Vector3(0f, 12.5f, -26f), 8f);
 
-        // 三个弹跳台
-        Pad(new Vector3(18f, 0.08f, -8f), 8.5f);
-        Pad(new Vector3(-18f, 0.08f, -6f), 11f);
-        Pad(new Vector3(18f, 7.35f, -16f), 7.5f);
+        // 三个地面弹跳台。距离要够远，让抛物线在进入岛的投影之前就升到岛面以上，
+        // 否则会撞到浮空岛底面被挡下来（这是之前"上不去"的真正原因）。
+        Pad(new Vector3(18f, 0.1f, -8f), 9.5f, new Vector3(18f, 7.1f, -16f));
+        Pad(new Vector3(-18f, 0.1f, 0f), 12.5f, new Vector3(-18f, 9.6f, -14f));
+        Pad(new Vector3(0f, 0.1f, -16f), 15f, new Vector3(0f, 12.6f, -26f));
     }
 
     void Island(Vector3 center, float size)
@@ -188,16 +189,19 @@ public class GameBootstrap : MonoBehaviour
             Vector3.one * 1.1f, blossom, false);
     }
 
-    void Pad(Vector3 pos, float height)
+    void Pad(Vector3 pos, float height, Vector3 targetPoint)
     {
+        // 不加碰撞体：BouncePad 用距离判定，避免依赖 CharacterController 的触发器事件
         var padGo = Prim(PrimitiveType.Cylinder, "BouncePad", pos,
-            new Vector3(1.8f, 0.08f, 1.8f), gold, true);
-
-        var trigger = padGo.GetComponent<Collider>();
-        if (trigger != null) trigger.isTrigger = true;
+            new Vector3(2.2f, 0.1f, 2.2f), gold, false);
 
         var bounce = padGo.AddComponent<BouncePad>();
         bounce.launchHeight = height;
+
+        var targetGo = new GameObject("PadTarget");
+        targetGo.transform.SetParent(_root);
+        targetGo.transform.position = targetPoint;
+        bounce.target = targetGo.transform;
     }
 
     // ------------------------------------------------------------ 剑碑与花瓣
@@ -387,6 +391,24 @@ public class GameBootstrap : MonoBehaviour
                 eye.transform.localPosition = new Vector3(0.1f * i, 1.34f, 0.2f);
             }
 
+            // 尖角
+            for (int i = -1; i <= 1; i += 2)
+            {
+                var horn = Prim(PrimitiveType.Cube, "Horn", Vector3.zero,
+                    new Vector3(0.09f, 0.44f, 0.09f), new Color(0.86f, 0.8f, 0.68f), false, enemy.transform);
+                horn.transform.localPosition = new Vector3(0.17f * i, 1.62f, 0f);
+                horn.transform.localRotation = Quaternion.Euler(0f, 0f, -20f * i);
+            }
+
+            // 细长的胳膊
+            for (int i = -1; i <= 1; i += 2)
+            {
+                var arm = Prim(PrimitiveType.Cube, "Arm", Vector3.zero,
+                    new Vector3(0.12f, 0.52f, 0.12f), new Color(0.3f, 0.17f, 0.24f), false, enemy.transform);
+                arm.transform.localPosition = new Vector3(0.37f * i, 0.86f, 0.02f);
+                arm.transform.localRotation = Quaternion.Euler(0f, 0f, 14f * i);
+            }
+
             var hp = enemy.AddComponent<Health>();
             hp.maxHealth = 60f;
             hp.ResetHealth();   // Awake 已按默认值初始化，这里改完最大值要重算当前值
@@ -442,6 +464,38 @@ public class GameBootstrap : MonoBehaviour
         gameHud.motor = target.GetComponent<PlayerMotor>();
         gameHud.playerHealth = target.GetComponent<Health>();
         gameHud.combat = target.GetComponent<PlayerCombat>();
+    }
+
+    // ------------------------------------------------------------ 调试入口
+
+    /// <summary>传送玩家（调试/测试用，也可以通过 SendMessage 从外部调用）。</summary>
+    public void Teleport(Vector3 position)
+    {
+        if (_player == null) return;
+
+        var cc = _player.GetComponent<CharacterController>();
+        if (cc != null) cc.enabled = false;
+
+        _player.position = position;
+
+        if (cc != null) cc.enabled = true;
+
+        var motor = _player.GetComponent<PlayerMotor>();
+        if (motor != null) motor.ResetVelocity();
+    }
+
+    public void TeleportToPad1() => Teleport(new Vector3(18f, 0.4f, -8f));
+    public void TeleportToPad2() => Teleport(new Vector3(-18f, 0.4f, 0f));
+    public void TeleportToPad3() => Teleport(new Vector3(0f, 0.4f, -16f));
+
+    void Update()
+    {
+        // 调试快捷键：1/2/3 传送到三个弹跳台，方便验证动线
+        if (GameManager.Instance == null || !GameManager.Instance.CanPlayerMove) return;
+
+        if (Input.GetKeyDown(KeyCode.Alpha1)) TeleportToPad1();
+        else if (Input.GetKeyDown(KeyCode.Alpha2)) TeleportToPad2();
+        else if (Input.GetKeyDown(KeyCode.Alpha3)) TeleportToPad3();
     }
 
     void EnsureLight()

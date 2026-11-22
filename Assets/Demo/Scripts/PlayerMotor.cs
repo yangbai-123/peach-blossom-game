@@ -88,13 +88,27 @@ public class PlayerMotor : MonoBehaviour
         float targetSpeed = hasInput ? (IsSprinting ? sprintSpeed : walkSpeed) : 0f;
         Vector3 targetVelocity = moveDirection * targetSpeed;
 
-        // 目标速度比当前大 → 用加速度；否则用减速度
-        float rate = targetVelocity.sqrMagnitude > _horizontalVelocity.sqrMagnitude
-            ? acceleration
-            : deceleration;
+        if (!_grounded && !hasInput)
+        {
+            // 空中无输入：保持水平动量。否则弹跳台给的速度会被地面减速瞬间吃掉，
+            // 玩家变成原地直上直下，落回台子又被弹一次（会无限循环）。
+        }
+        else if (!_grounded && hasInput)
+        {
+            // 空中有输入：弱化操控，只做轻微转向，不破坏原有动量
+            _horizontalVelocity = Vector3.MoveTowards(
+                _horizontalVelocity, targetVelocity, acceleration * 0.35f * Time.deltaTime);
+        }
+        else
+        {
+            // 目标速度比当前大 → 用加速度；否则用减速度
+            float rate = targetVelocity.sqrMagnitude > _horizontalVelocity.sqrMagnitude
+                ? acceleration
+                : deceleration;
 
-        _horizontalVelocity = Vector3.MoveTowards(
-            _horizontalVelocity, targetVelocity, rate * Time.deltaTime);
+            _horizontalVelocity = Vector3.MoveTowards(
+                _horizontalVelocity, targetVelocity, rate * Time.deltaTime);
+        }
 
         // ---- 2. 转向：朝速度方向平滑转身 ----
         if (Time.time >= _turnLockUntil && _horizontalVelocity.sqrMagnitude > 0.01f)
@@ -200,6 +214,18 @@ public class PlayerMotor : MonoBehaviour
         transform.rotation = Quaternion.LookRotation(direction.normalized, Vector3.up);
         _turnSmoothVelocity = 0f;
         _turnLockUntil = Time.time + lockSeconds;
+    }
+
+    /// <summary>
+    /// 弹射：直接设定水平与垂直速度，用于弹跳台。
+    /// 与 AddImpulse 的区别是它不叠加、而是覆盖水平速度，保证落点可控。
+    /// </summary>
+    public void Launch(Vector3 horizontalVelocity, float verticalSpeed)
+    {
+        _horizontalVelocity = horizontalVelocity;
+        _verticalVelocity = Mathf.Max(verticalSpeed, _verticalVelocity);
+        _grounded = false;
+        _turnLockUntil = 0f;
     }
 
     /// <summary>

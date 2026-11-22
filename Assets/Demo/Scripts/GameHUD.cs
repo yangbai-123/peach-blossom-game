@@ -149,7 +149,7 @@ public class GameHUD : MonoBehaviour
 
         string hint = gm.ShrineUnlocked
             ? "剑碑已醒 · 登上山顶"
-            : "花瓣散落各处，左键挥剑清路";
+            : "花瓣散落各处 · 金色台子可弹上浮空岛";
 
         GUI.Label(new Rect(panel.x + 12f * _scale, panel.y + 102f * _scale, panelW - 24f * _scale, 28f * _scale),
             hint, _small);
