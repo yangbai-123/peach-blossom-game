@@ -135,6 +135,12 @@ public class ThirdPersonCamera : MonoBehaviour
     {
         firstPerson = !firstPerson;
 
+        // 两种视角的俯仰习惯不同，切换时把极端角度收回来
+        if (firstPerson)
+            _pitch = Mathf.Clamp(_pitch, -10f, 20f);
+        else
+            _pitch = Mathf.Clamp(_pitch, minPitch, maxPitch);
+
         if (!firstPerson)
             SetBodyVisible(true);
 
@@ -144,6 +150,7 @@ public class ThirdPersonCamera : MonoBehaviour
     void SetBodyVisible(bool visible)
     {
         if (_bodyRenderers == null) CacheBodyRenderers();
+        if (_bodyRenderers == null) return;
 
         if (_bodyHidden == !visible) return;
 

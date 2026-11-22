@@ -171,7 +171,9 @@ public class TouchControls : MonoBehaviour
             return;
         }
 
-        if (_lookFinger < 0) _lookFinger = id;
+        // 只有右侧区域才算转视角，避免点 HUD 或空白处也让镜头乱转
+        bool inLookArea = pos.x > Screen.width * 0.34f && pos.y > Screen.height * 0.10f;
+        if (_lookFinger < 0 && inLookArea) _lookFinger = id;
     }
 
     void OnDrag(Vector2 pos, int id, Vector2 delta)
