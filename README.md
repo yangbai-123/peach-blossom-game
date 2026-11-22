@@ -4,6 +4,8 @@
 
 Unity 制作，场景、角色、特效、音效全部**运行时程序化生成**，不依赖任何外部美术资源。
 
+### ▶ [在线试玩](https://yangbai-123.github.io/peach-blossom-game/)
+
 ![标题](docs/screenshots/title.png)
 
 ## 玩法
