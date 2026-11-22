@@ -13,6 +13,9 @@ public class ThirdPersonCamera : MonoBehaviour
 
     [Header("距离与角度")]
     public float distance = 4.5f;
+    public float minDistance = 1.8f;
+    public float maxDistance = 9f;
+    public float zoomStep = 0.6f;
     public float mouseSensitivity = 3f;
     public float minPitch = -30f;
     public float maxPitch = 70f;
@@ -35,6 +38,11 @@ public class ThirdPersonCamera : MonoBehaviour
             _pitch -= Input.GetAxis("Mouse Y") * mouseSensitivity;
             _pitch = Mathf.Clamp(_pitch, minPitch, maxPitch);
         }
+
+        // 滚轮缩放
+        float scroll = Input.mouseScrollDelta.y;
+        if (Mathf.Abs(scroll) > 0.01f)
+            distance = Mathf.Clamp(distance - Mathf.Sign(scroll) * zoomStep, minDistance, maxDistance);
 
         Quaternion rotation = Quaternion.Euler(_pitch, _yaw, 0f);
         Vector3 pivot = target.position + pivotOffset;
