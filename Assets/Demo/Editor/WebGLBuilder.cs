@@ -29,6 +29,10 @@ public static class WebGLBuilder
         // 剥离后会报 "class 'SphereCollider' doesn't exist"，导致挥剑判定完全失效。
         PlayerSettings.stripEngineCode = false;
 
+        // MToon 是 VRM 模型用的着色器，运行时通过 Shader.Find 取，
+        // 不放进去会被剥离，模型会变成洋红。
+        EnsureShaderIncluded("VRM/MToon");
+
         Debug.Log($"[WebGL] decompressionFallback={PlayerSettings.WebGL.decompressionFallback}, " +
                   $"stripEngineCode={PlayerSettings.stripEngineCode}");
 
@@ -55,6 +59,40 @@ public static class WebGLBuilder
             Debug.LogError("[WebGL] 打包失败");
             if (Application.isBatchMode) EditorApplication.Exit(1);
         }
+    }
+
+    /// <summary>把着色器加入 Always Included Shaders，避免运行时 Shader.Find 拿到 null。</summary>
+    static void EnsureShaderIncluded(string shaderName)
+    {
+        var shader = Shader.Find(shaderName);
+        if (shader == null)
+        {
+            Debug.LogWarning($"[WebGL] 找不到着色器：{shaderName}");
+            return;
+        }
+
+        var asset = AssetDatabase.LoadAssetAtPath<Object>("ProjectSettings/GraphicsSettings.asset");
+        if (asset == null)
+        {
+            Debug.LogWarning("[WebGL] 读不到 GraphicsSettings.asset");
+            return;
+        }
+
+        var so = new SerializedObject(asset);
+        var array = so.FindProperty("m_AlwaysIncludedShaders");
+        if (array == null) return;
+
+        for (int i = 0; i < array.arraySize; i++)
+        {
+            if (array.GetArrayElementAtIndex(i).objectReferenceValue == shader) return;
+        }
+
+        array.InsertArrayElementAtIndex(array.arraySize);
+        array.GetArrayElementAtIndex(array.arraySize - 1).objectReferenceValue = shader;
+        so.ApplyModifiedProperties();
+        AssetDatabase.SaveAssets();
+
+        Debug.Log($"[WebGL] 已加入 Always Included Shaders：{shaderName}");
     }
 
     /// <summary>

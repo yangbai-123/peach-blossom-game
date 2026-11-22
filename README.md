@@ -115,12 +115,12 @@ Assets/Demo/Scripts/
 
 | 内容 | 来源 | 授权 |
 | --- | --- | --- |
-| 中文字体 Noto Sans SC | Google / Adobe | SIL OFL 1.1（同目录附协议） |
+| 主角 3D 模型 スリクオちゃん | [なみぞー](https://hub.vroid.com)（VRoid Hub） | 允许商用与修改，**必须署名** |
 | 人物立绘 | 项目自带 | 仅用于本项目 |
-| 场景 / 角色 / 怪物 | 运行时程序化生成 | 无外部素材 |
+| 场景 / 怪物 / 特效 | 运行时程序化生成 | 无外部素材 |
 | 音效 | 运行时合成 | 无外部素材 |
 
-角色与怪物目前由基础几何体拼装而成，想换成外部模型可以接入 FBX + Animator，代码里预留了接口（禁用 `HumanoidRig`，把模型挂到 `Player` 下即可）。
+主角模型通过 UniVRM 在运行时加载（`Assets/Demo/Resources/Models/character.bytes`），骨骼动画由 `VrmCharacterRig` 程序化驱动，没有使用 Animator Controller。加载失败会自动退回程序化人形。
 
 ## 本地运行
 

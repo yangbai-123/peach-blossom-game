@@ -44,6 +44,7 @@ public class GameBootstrap : MonoBehaviour
         BuildHud(_player);
     }
 
+    /// <summary>给导入的人形模型挂一把程序化长剑（VRM 本身没有武器）。</summary>
     // ------------------------------------------------------------ 基础地形
 
     void BuildTerrain()
@@ -329,13 +330,12 @@ public class GameBootstrap : MonoBehaviour
         controller.stateMachine = fsm;
         controller.respawnPoint = spawnPoint;
 
-        var rig = player.AddComponent<HumanoidRig>();
-        rig.motor = motor;
-        rig.stateMachine = fsm;
-        rig.robe = new Color(0.95f, 0.95f, 0.98f);
-
+        // 身体：运行时加载 VRM 模型，失败自动退回程序化人形
         var combat = player.AddComponent<PlayerCombat>();
-        rig.combat = combat;
+
+        var loader = player.AddComponent<VrmCharacterLoader>();
+        loader.motor = motor;
+        loader.combat = combat;
 
         var health = player.AddComponent<Health>();
         health.maxHealth = 100f;
