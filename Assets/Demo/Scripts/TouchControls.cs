@@ -1,0 +1,274 @@
+using System.Runtime.InteropServices;
+using UnityEngine;
+
+/// <summary>
+/// 移动端触屏控制：左下虚拟摇杆 + 右下攻击/跳跃/冲刺按钮 + 右侧拖动转视角。
+///
+/// 用 IMGUI 绘制，不依赖 uGUI/EventSystem，手机浏览器和 WebGL 都能直接跑。
+/// 非触屏设备不显示，按 T 可以强制切换。
+/// </summary>
+public class TouchControls : MonoBehaviour
+{
+    [Header("自动检测")]
+    public bool autoDetect = true;
+
+    [Header("摇杆")]
+    public float baseRadius = 78f;
+    public float knobRadius = 34f;
+
+    [Header("视角")]
+    public float lookSensitivity = 0.35f;
+
+    int _moveFinger = -1;
+    int _lookFinger = -1;
+    int _buttonFinger = -1;
+    Vector2 _knobOffset;
+    Vector2 _baseCenter;
+    bool _draggingKnob;
+
+    Texture2D _circleTex;
+    GUIStyle _labelStyle;
+
+    // 浏览器触摸事件的坐标系尺寸（CSS × devicePixelRatio），不一定等于 Screen
+    Vector2 _inputSize;
+
+#if UNITY_WEBGL && !UNITY_EDITOR
+    [DllImport("__Internal")] static extern int DSH_CanvasInputWidth();
+    [DllImport("__Internal")] static extern int DSH_CanvasInputHeight();
+#endif
+
+    // 按钮在屏幕上的位置（左上原点）
+    Rect AttackRect, JumpRect, SprintRect;
+
+    void Awake()
+    {
+        _circleTex = MakeCircleTexture(128);
+    }
+
+    void Start()
+    {
+        if (autoDetect)
+        {
+            bool touch = Input.touchSupported;
+            MobileInput.Enabled = touch || Application.isMobilePlatform;
+        }
+
+        Layout();
+        RefreshInputSize();
+    }
+
+    void Layout()
+    {
+        float s = Mathf.Clamp(Mathf.Min(Screen.width, Screen.height) / 720f, 0.75f, 1.4f);
+
+        AttackRect = new Rect(Screen.width - 150f * s, Screen.height - 170f * s, 120f * s, 120f * s);
+        JumpRect = new Rect(Screen.width - 290f * s, Screen.height - 130f * s, 96f * s, 96f * s);
+        SprintRect = new Rect(Screen.width - 160f * s, Screen.height - 320f * s, 88f * s, 88f * s);
+
+        baseRadius = 78f * s;
+        knobRadius = 34f * s;
+        _baseCenter = new Vector2(150f * s, Screen.height - 170f * s);
+    }
+
+    void RefreshInputSize()
+    {
+#if UNITY_WEBGL && !UNITY_EDITOR
+        int w = DSH_CanvasInputWidth();
+        int h = DSH_CanvasInputHeight();
+        if (w > 0 && h > 0)
+        {
+            _inputSize = new Vector2(w, h);
+            return;
+        }
+#endif
+        _inputSize = new Vector2(Screen.width, Screen.height);
+    }
+
+    /// <summary>把触摸坐标换算到 Screen 空间（左下原点）。</summary>
+    Vector2 ToScreen(Vector2 touchPos)
+    {
+        if (_inputSize.x <= 1f || _inputSize.y <= 1f) RefreshInputSize();
+
+        return new Vector2(
+            touchPos.x * (Screen.width / _inputSize.x),
+            touchPos.y * (Screen.height / _inputSize.y));
+    }
+
+    void Update()
+    {
+        // 手动切换（方便桌面调试）
+        if (Input.GetKeyDown(KeyCode.T))
+        {
+            MobileInput.Enabled = !MobileInput.Enabled;
+            MobileInput.Reset();
+        }
+
+        if (!MobileInput.Enabled)
+        {
+            MobileInput.Move = Vector2.zero;
+            return;
+        }
+
+        Layout();
+
+        if (Input.touchCount == 0)
+        {
+            // 桌面用鼠标模拟，方便测试
+            bool mouseDown = Input.GetMouseButton(0);
+            Vector2 mp = new Vector2(Input.mousePosition.x, Screen.height - Input.mousePosition.y);
+
+            if (Input.GetMouseButtonDown(0)) OnPress(mp, 9000);
+            if (mouseDown) OnDrag(mp, 9000, Vector2.zero);
+            if (!mouseDown) OnRelease(9000);
+            return;
+        }
+
+        for (int i = 0; i < Input.touchCount; i++)
+        {
+            Touch t = Input.GetTouch(i);
+
+            Vector2 screenPos = ToScreen(t.position);
+
+            // Touch.position 是左下原点，IMGUI 是左上原点
+            Vector2 pos = new Vector2(screenPos.x, Screen.height - screenPos.y);
+
+            Vector2 screenDelta = ToScreen(t.deltaPosition);
+
+            if (t.phase == TouchPhase.Began) OnPress(pos, t.fingerId);
+            else if (t.phase == TouchPhase.Moved || t.phase == TouchPhase.Stationary)
+                OnDrag(pos, t.fingerId, new Vector2(screenDelta.x, -screenDelta.y));
+            else if (t.phase == TouchPhase.Ended || t.phase == TouchPhase.Canceled)
+                OnRelease(t.fingerId);
+        }
+    }
+
+    void OnPress(Vector2 pos, int id)
+    {
+        if (InRect(pos, AttackRect)) { MobileInput.PressAttack(); _buttonFinger = id; return; }
+        if (InRect(pos, JumpRect)) { MobileInput.PressJump(); _buttonFinger = id; return; }
+        if (InRect(pos, SprintRect)) { MobileInput.Sprint = !MobileInput.Sprint; _buttonFinger = id; return; }
+
+        if (_moveFinger < 0 && Vector2.Distance(pos, _baseCenter) <= baseRadius * 1.7f)
+        {
+            _moveFinger = id;
+            _baseCenter = pos;
+            _knobOffset = Vector2.zero;
+            _draggingKnob = true;
+            return;
+        }
+
+        if (_lookFinger < 0) _lookFinger = id;
+    }
+
+    void OnDrag(Vector2 pos, int id, Vector2 delta)
+    {
+        if (id == _moveFinger && _draggingKnob)
+        {
+            Vector2 offset = pos - _baseCenter;
+            if (offset.magnitude > baseRadius) offset = offset.normalized * baseRadius;
+
+            _knobOffset = offset;
+            MobileInput.Move = offset / baseRadius;
+        }
+        else if (id == _lookFinger && delta.sqrMagnitude > 0.01f)
+        {
+            MobileInput.LookDelta = new Vector2(delta.x * lookSensitivity, delta.y * lookSensitivity);
+        }
+    }
+
+    void OnRelease(int id)
+    {
+        if (id == _moveFinger)
+        {
+            _moveFinger = -1;
+            _draggingKnob = false;
+            _knobOffset = Vector2.zero;
+            MobileInput.Move = Vector2.zero;
+        }
+
+        if (id == _lookFinger) _lookFinger = -1;
+        if (id == _buttonFinger) _buttonFinger = -1;
+    }
+
+    static bool InRect(Vector2 p, Rect r) => r.Contains(p);
+
+    void OnGUI()
+    {
+        if (!MobileInput.Enabled) return;
+
+        EnsureStyles();
+
+        if (_draggingKnob)
+        {
+            DrawCircle(_baseCenter, baseRadius, new Color(1f, 1f, 1f, 0.18f));
+            DrawCircle(_baseCenter, baseRadius * 0.96f, new Color(1f, 1f, 1f, 0.05f));
+            DrawCircle(_baseCenter + _knobOffset, knobRadius, new Color(1f, 0.95f, 0.85f, 0.85f));
+        }
+        else
+        {
+            DrawCircle(_baseCenter, baseRadius * 0.78f, new Color(1f, 1f, 1f, 0.10f));
+            GUI.Label(new Rect(_baseCenter.x - 48f, _baseCenter.y - 12f, 96f, 28f), "移动", _labelStyle);
+        }
+
+        DrawButton(AttackRect, "攻击", new Color(1f, 0.45f, 0.45f, 0.55f));
+        DrawButton(JumpRect, "跳跃", new Color(0.5f, 0.75f, 1f, 0.5f));
+        DrawButton(SprintRect, "冲刺", MobileInput.Sprint
+            ? new Color(1f, 0.85f, 0.4f, 0.85f)
+            : new Color(1f, 1f, 1f, 0.28f));
+    }
+
+    void DrawButton(Rect r, string text, Color color)
+    {
+        DrawCircle(new Vector2(r.x + r.width * 0.5f, r.y + r.height * 0.5f), r.width * 0.5f, color);
+        GUI.Label(r, text, _labelStyle);
+    }
+
+    void DrawCircle(Vector2 center, float radius, Color color)
+    {
+        if (_circleTex == null) return;
+
+        var prev = GUI.color;
+        GUI.color = color;
+        GUI.DrawTexture(new Rect(center.x - radius, center.y - radius, radius * 2f, radius * 2f), _circleTex);
+        GUI.color = prev;
+    }
+
+    void EnsureStyles()
+    {
+        if (_labelStyle != null) return;
+
+        _labelStyle = new GUIStyle(GUI.skin.label)
+        {
+            alignment = TextAnchor.MiddleCenter,
+            fontSize = Mathf.RoundToInt(20f * Mathf.Clamp(Mathf.Min(Screen.width, Screen.height) / 720f, 0.8f, 1.5f)),
+            fontStyle = FontStyle.Bold,
+        };
+        _labelStyle.normal.textColor = new Color(1f, 1f, 1f, 0.9f);
+    }
+
+    static Texture2D MakeCircleTexture(int size)
+    {
+        var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+        tex.wrapMode = TextureWrapMode.Clamp;
+
+        float r = size * 0.5f;
+        var pixels = new Color32[size * size];
+
+        for (int y = 0; y < size; y++)
+        {
+            for (int x = 0; x < size; x++)
+            {
+                float dx = x - r + 0.5f;
+                float dy = y - r + 0.5f;
+                float d = Mathf.Sqrt(dx * dx + dy * dy);
+
+                float a = Mathf.Clamp01((r - d) / 1.5f);
+                pixels[y * size + x] = new Color32(255, 255, 255, (byte)(a * 255f));
+            }
+        }
+
+        tex.SetPixels32(pixels);
+        tex.Apply();
+        return tex;
+    }
+}

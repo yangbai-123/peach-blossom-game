@@ -91,11 +91,14 @@ public class GameHUD : MonoBehaviour
         float alpha = 0.55f + Mathf.Sin(_titleTime * 2.2f) * 0.35f;
         var c = _body.normal.textColor;
         _body.normal.textColor = new Color(c.r, c.g, c.b, alpha);
-        GUI.Label(new Rect(w * 0.54f, h * 0.72f, w * 0.40f, 60f * _scale), "点击或按任意键开始", _body);
+        GUI.Label(new Rect(w * 0.54f, h * 0.72f, w * 0.40f, 60f * _scale),
+            MobileInput.Enabled ? "点击屏幕开始" : "点击或按任意键开始", _body);
         _body.normal.textColor = c;
 
         GUI.Label(new Rect(24f, h - 44f * _scale, 700f, 30f * _scale),
-            "WASD 移动　Shift 冲刺　空格 跳跃　左键 挥剑　鼠标 视角", _small);
+            MobileInput.Enabled
+                ? "左下摇杆 移动　右侧拖动 视角　按钮 攻击/跳跃/冲刺"
+                : "WASD 移动　Shift 冲刺　空格 跳跃　左键 挥剑　鼠标 视角", _small);
 
         // 开始
         if (Event.current.type == EventType.MouseDown || Input.anyKeyDown)
@@ -164,7 +167,9 @@ public class GameHUD : MonoBehaviour
         }
 
         GUI.Label(new Rect(20f, h - 40f * _scale, 700f * _scale, 28f * _scale),
-            "WASD 移动　Shift 冲刺　空格 跳跃　左键/J 挥剑　鼠标 视角", _small);
+            MobileInput.Enabled
+                ? "左下摇杆 移动　右侧拖动 视角"
+                : "WASD 移动　Shift 冲刺　空格 跳跃　左键/J 挥剑　鼠标 视角", _small);
 
         if (motor != null)
         {

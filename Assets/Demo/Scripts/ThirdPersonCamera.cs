@@ -31,8 +31,19 @@ public class ThirdPersonCamera : MonoBehaviour
     {
         if (target == null) return;
 
-        // 锁定鼠标时才有意义；未锁定就当作不转视角
-        if (Cursor.lockState == CursorLockMode.Locked)
+        // 锁定鼠标时才有意义；未锁定就当作不转视角。触屏设备用右侧拖动。
+        if (MobileInput.Enabled)
+        {
+            Vector2 look = MobileInput.LookDelta;
+            if (look.sqrMagnitude > 0.0001f)
+            {
+                _yaw += look.x * 6f;
+                _pitch -= look.y * 6f;
+                _pitch = Mathf.Clamp(_pitch, minPitch, maxPitch);
+            }
+            MobileInput.LookDelta = Vector2.zero;
+        }
+        else if (Cursor.lockState == CursorLockMode.Locked)
         {
             _yaw += Input.GetAxis("Mouse X") * mouseSensitivity;
             _pitch -= Input.GetAxis("Mouse Y") * mouseSensitivity;

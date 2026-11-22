@@ -47,11 +47,42 @@ public static class WebGLBuilder
         Debug.Log($"[WebGL] 结果={summary.result}  大小={summary.totalSize / (1024f * 1024f):0.0} MB  " +
                   $"耗时={summary.totalTime}  错误={summary.totalErrors}");
 
+        if (summary.result == BuildResult.Succeeded)
+            PatchIndexForMobile();
+
         if (summary.result != BuildResult.Succeeded)
         {
             Debug.LogError("[WebGL] 打包失败");
             if (Application.isBatchMode) EditorApplication.Exit(1);
         }
+    }
+
+    /// <summary>
+    /// Unity 默认模板只在识别到手机 UA 时才让画布铺满屏幕，
+    /// 桌面浏览器 / 某些横屏环境仍会保持 960×600。
+    /// 这里直接注入 CSS 强制铺满，保证触屏坐标与屏幕一致。
+    /// </summary>
+    static void PatchIndexForMobile()
+    {
+        var indexPath = System.IO.Path.Combine(OutputDir, "index.html");
+        if (!System.IO.File.Exists(indexPath)) return;
+
+        var html = System.IO.File.ReadAllText(indexPath);
+        if (html.Contains("dsh-fullscreen")) return;
+
+        const string patch = @"
+<style id=""dsh-fullscreen"">
+  html, body { width: 100%; height: 100%; margin: 0; padding: 0; overflow: hidden; background: #0d1117; }
+  #unity-container, #unity-fullscreen-container { width: 100% !important; height: 100% !important; }
+  #unity-canvas { width: 100% !important; height: 100% !important; display: block; touch-action: none; }
+  #unity-footer { display: none !important; }
+</style>
+<meta name=""viewport"" content=""width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"">
+</head>";
+
+        html = html.Replace("</head>", patch);
+        System.IO.File.WriteAllText(indexPath, html);
+        Debug.Log("[WebGL] 已注入全屏 CSS（触屏坐标对齐）");
     }
 }
 #endif

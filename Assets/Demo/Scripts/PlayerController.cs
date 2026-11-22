@@ -43,18 +43,30 @@ public class PlayerController : MonoBehaviour
             return;
         }
 
-        // 1. 原始输入
-        Vector2 raw = new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical"));
+        // 1. 原始输入（触屏优先，没有触屏走键鼠）
+        Vector2 raw;
+        bool sprint;
+        bool jumpPressed;
+
+        if (MobileInput.Enabled)
+        {
+            raw = MobileInput.Move;
+            sprint = MobileInput.Sprint;
+            jumpPressed = MobileInput.ConsumeJump();
+        }
+        else
+        {
+            raw = new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical"));
+            sprint = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+            jumpPressed = Input.GetButtonDown("Jump");
+        }
+
         if (raw.sqrMagnitude > 1f) raw.Normalize();
 
         // 2. 相机相对方向
         Vector3 dir = CameraRelative(raw);
 
-        // 3. 动作
-        bool sprint = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
-        bool jumpPressed = Input.GetButtonDown("Jump");
-
-        // 4. 驱动
+        // 3. 驱动
         motor.Tick(dir, sprint, jumpPressed);
         if (stateMachine != null) stateMachine.Tick(motor);
 
