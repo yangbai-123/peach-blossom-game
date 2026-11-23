@@ -43,6 +43,9 @@ public class PlayerMotor : MonoBehaviour
     [Tooltip("坡度超过 slopeLimit 时沿坡面下滑的速度")]
     public float slopeSlideSpeed = 6f;
 
+    [Tooltip("临时速度倍率（物资增益）")]
+    public float speedMultiplier = 1f;
+
     /// <summary>地面探测额外下探的距离</summary>
     const float GroundProbeExtra = 0.12f;
 
@@ -85,7 +88,7 @@ public class PlayerMotor : MonoBehaviour
         IsSprinting = sprint && hasInput;
 
         // ---- 1. 水平速度：加速 / 减速 ----
-        float targetSpeed = hasInput ? (IsSprinting ? sprintSpeed : walkSpeed) : 0f;
+        float targetSpeed = hasInput ? (IsSprinting ? sprintSpeed : walkSpeed) * speedMultiplier : 0f;
         Vector3 targetVelocity = moveDirection * targetSpeed;
 
         if (!_grounded && !hasInput)

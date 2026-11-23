@@ -19,6 +19,9 @@ public class PlayerCombat : MonoBehaviour
     public float radius = 1.2f;
     public float knockback = 7f;
 
+    [Tooltip("临时伤害倍率（物资增益）")]
+    public float damageMultiplier = 1f;
+
     [Header("节奏")]
     public float windupTime = 0.07f;
     public float activeTime = 0.13f;
@@ -162,7 +165,7 @@ public class PlayerCombat : MonoBehaviour
             if (health.transform.root == transform.root) continue;
             if (!_hitThisSwing.Add(health)) continue;
 
-            float dmg = comboDamage[Mathf.Clamp(_combo, 0, comboDamage.Length - 1)];
+            float dmg = comboDamage[Mathf.Clamp(_combo, 0, comboDamage.Length - 1)] * damageMultiplier;
             if (!health.TakeDamage(dmg, transform.position)) continue;
 
             // 便于在浏览器控制台验证战斗链路（Unity WebGL 会把 Debug.Log 转到 console）

@@ -107,6 +107,7 @@ public class GameHUD : MonoBehaviour
         DrawCharacterCards(w, h);
         DrawAccountPanel(w, h);
         DrawLeaderboard(w, h);
+        DrawModeButtons(w, h);
 
         var hintRect = new Rect(16f, h - 52f * _scale, 780f, 42f * _scale);
         DrawRect(hintRect, new Color(0f, 0f, 0f, 0.38f));
@@ -130,12 +131,60 @@ public class GameHUD : MonoBehaviour
         float h = Screen.height;
 
         float cardW = w * 0.34f;
-        float cardH = h * 0.13f;
+        float cardH = h * 0.115f;
         float x = w * 0.055f;
-        float y0 = h * 0.44f;
-        float gap = h * 0.018f;
+        float y0 = h * 0.505f;
+        float gap = h * 0.016f;
 
         return new Rect(x, y0 + index * (cardH + gap), cardW, cardH);
+    }
+
+    // ------------------------------------------------------------- 玩法模式
+
+    static readonly (GameMode mode, string label, string hint)[] Modes =
+    {
+        (GameMode.Shrine, "寻剑", "收集十二片花瓣，登顶归剑"),
+        (GameMode.Extraction, "烽火地带", "限时搜集物资并撤离"),
+        (GameMode.Duel, "联机对枪", "和朋友 1v1"),
+    };
+
+    Rect ModeRect(int index)
+    {
+        float w = Screen.width, h = Screen.height;
+        float bw = w * 0.108f;
+        float gap = w * 0.008f;
+        return new Rect(w * 0.055f + index * (bw + gap), h * 0.405f, bw, h * 0.05f);
+    }
+
+    void DrawModeButtons(float w, float h)
+    {
+        GUI.Label(new Rect(w * 0.055f, h * 0.375f, w * 0.34f, 26f * _scale), "玩法", _small);
+
+        for (int i = 0; i < Modes.Length; i++)
+        {
+            var rect = ModeRect(i);
+            bool picked = GameManager.Instance != null && GameManager.Instance.PendingMode == Modes[i].mode;
+
+            DrawButtonRow(rect, Modes[i].label, picked);
+
+            if (picked)
+                GUI.Label(new Rect(rect.x, rect.yMax + 2f, w * 0.34f, 24f * _scale),
+                    Modes[i].hint, _small);
+        }
+    }
+
+    /// <summary>标题界面点玩法按钮，返回 true 表示已消耗。</summary>
+    bool HandleModeClick(Vector2 mouse)
+    {
+        for (int i = 0; i < Modes.Length; i++)
+        {
+            if (!ModeRect(i).Contains(mouse)) continue;
+
+            GameManager.Instance.PendingMode = Modes[i].mode;
+            return true;
+        }
+
+        return false;
     }
 
     // ------------------------------------------------------------- 账户与排行榜
@@ -348,7 +397,10 @@ public class GameHUD : MonoBehaviour
             // 2. 取消输入焦点（点空白先失焦，不误触开始）
             if (_nameFocused) { _nameFocused = false; return; }
 
-            // 3. 角色卡
+            // 3. 玩法按钮
+            if (HandleModeClick(mouse)) return;
+
+            // 4. 角色卡
             for (int i = 0; i < CharacterCatalog.Entries.Length; i++)
             {
                 if (!CardRect(i).Contains(mouse)) continue;
@@ -378,7 +430,7 @@ public class GameHUD : MonoBehaviour
         var entries = CharacterCatalog.Entries;
         if (entries == null || entries.Length == 0) return;
 
-        GUI.Label(new Rect(w * 0.055f, h * 0.44f - h * 0.07f, w * 0.34f, 40f * _scale), "选择角色", _body);
+        GUI.Label(new Rect(w * 0.055f, h * 0.505f - h * 0.052f, w * 0.34f, 34f * _scale), "选择角色", _body);
 
         for (int i = 0; i < entries.Length; i++)
         {
@@ -481,6 +533,8 @@ public class GameHUD : MonoBehaviour
                 $"速度 {motor.HorizontalSpeed:0.0} m/s", _small);
         }
 
+        DrawModeInfo(w, h);
+
         // 受伤泛红
         if (gm.DamageFlash > 0.001f)
             DrawRect(new Rect(0f, 0f, w, h), new Color(0.75f, 0.08f, 0.1f, gm.DamageFlash * 0.3f));
@@ -503,16 +557,84 @@ public class GameHUD : MonoBehaviour
         float h = Screen.height;
 
         var center = new GUIStyle(_title) { alignment = TextAnchor.MiddleCenter };
-        GUI.Label(new Rect(0f, h * 0.24f, w, 120f * _scale), "剑 归 桃 夭", center);
+        GUI.Label(new Rect(0f, h * 0.24f, w, 120f * _scale),
+            gm.Success ? "剑 归 桃 夭" : "功 亏 一 篑", center);
 
         var sub = new GUIStyle(_subtitle) { alignment = TextAnchor.MiddleCenter };
-        GUI.Label(new Rect(0f, h * 0.35f, w, 60f * _scale),
-            $"十二片花瓣 · 用时 {FormatTime(gm.PlayTime)} · 斩敌 {gm.Kills}", sub);
+
+        string detail = string.IsNullOrEmpty(gm.EndReason)
+            ? $"用时 {FormatTime(gm.PlayTime)} · 斩敌 {gm.Kills}"
+            : $"{gm.EndReason} · 用时 {FormatTime(gm.PlayTime)} · 斩敌 {gm.Kills}";
+
+        GUI.Label(new Rect(0f, h * 0.35f, w, 60f * _scale), detail, sub);
 
         var again = new GUIStyle(_body) { alignment = TextAnchor.MiddleCenter };
         GUI.Label(new Rect(0f, h * 0.72f, w, 60f * _scale), "按 R 再来一次", again);
 
         if (Input.GetKeyDown(KeyCode.R)) gm.Restart();
+    }
+
+    /// <summary>玩法相关的界面：物资提示、撤离倒计时、进度。</summary>
+    void DrawModeInfo(float w, float h)
+    {
+        var gm = GameManager.Instance;
+        if (gm == null) return;
+
+        // 拾取提示
+        string toast = GameBootstrap.ToastText;
+        if (!string.IsNullOrEmpty(toast))
+        {
+            var tr = new Rect(w * 0.30f, h * 0.115f, w * 0.40f, 42f * _scale);
+            DrawRect(tr, new Color(0.06f, 0.11f, 0.18f, 0.8f));
+            GUI.Label(tr, toast, _body);
+        }
+
+        if (gm.Mode != GameMode.Extraction) return;
+
+        var ex = ExtractionMode.Instance;
+        if (ex == null || !ex.Playing) return;
+
+        // 顶部中央：倒计时 + 物资
+        float pw = w * 0.24f;
+        var panel = new Rect(w * 0.5f - pw * 0.5f, h * 0.02f, pw, 72f * _scale);
+        DrawRect(panel, new Color(0.05f, 0.09f, 0.15f, 0.72f));
+
+        string timer = "撤离倒计时 " + UserProfile.FormatTime(ex.TimeLeft);
+        GUI.Label(new Rect(panel.x, panel.y + 4f * _scale, panel.width, 34f * _scale), timer, _hud);
+
+        string loot = $"物资 {ex.LootCollected}/{ex.LootTotal}";
+        GUI.Label(new Rect(panel.x, panel.y + 38f * _scale, panel.width, 28f * _scale), loot, _small);
+
+        // 撤离点状态
+        string zone = ex.ZoneActive
+            ? "撤离点已开放 · 前往山顶石台"
+            : "撤离点将在开局 45 秒后开放";
+
+        GUI.Label(new Rect(w * 0.5f - w * 0.2f, h * 0.105f, w * 0.4f, 28f * _scale), zone, _small);
+
+        // 撤离进度
+        if (ex.ExtractProgress > 0.01f)
+        {
+            float p = Mathf.Clamp01(ex.ExtractProgress / 6f);
+            var bar = new Rect(w * 0.5f - w * 0.12f, h * 0.83f, w * 0.24f, 22f * _scale);
+            DrawRect(bar, new Color(0f, 0f, 0f, 0.5f));
+            DrawRect(new Rect(bar.x, bar.y, bar.width * p, bar.height), new Color(0.35f, 0.95f, 0.7f, 0.9f));
+            GUI.Label(new Rect(bar.x, bar.y - 30f * _scale, bar.width, 28f * _scale), "撤离中…", _small);
+        }
+
+        // 增益
+        var buffs = motor != null ? motor.GetComponent<PlayerBuffs>() : null;
+        if (buffs != null)
+        {
+            float x = w - 220f * _scale;
+            float y = h - 96f * _scale;
+
+            if (buffs.DamageLeft > 0f)
+                GUI.Label(new Rect(x, y, 200f * _scale, 26f * _scale), $"攻击强化 {buffs.DamageLeft:0}s", _small);
+
+            if (buffs.SpeedLeft > 0f)
+                GUI.Label(new Rect(x, y + 26f * _scale, 200f * _scale, 26f * _scale), $"疾行 {buffs.SpeedLeft:0}s", _small);
+        }
     }
 
     // ------------------------------------------------------------- 工具

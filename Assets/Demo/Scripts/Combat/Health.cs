@@ -37,6 +37,15 @@ public class Health : MonoBehaviour
         Changed?.Invoke(Current, maxHealth);
     }
 
+    /// <summary>回血（医疗包等）。</summary>
+    public void Heal(float amount)
+    {
+        if (IsDead || amount <= 0f) return;
+
+        Current = Mathf.Min(maxHealth, Current + amount);
+        Changed?.Invoke(Current, maxHealth);
+    }
+
     /// <summary>
     /// 扣血。返回是否真的生效（无敌中、已死亡会返回 false）。
     /// </summary>

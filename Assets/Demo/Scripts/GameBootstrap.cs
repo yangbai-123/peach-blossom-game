@@ -378,7 +378,24 @@ public class GameBootstrap : MonoBehaviour
         var go = new GameObject("GameManager");
         go.transform.SetParent(_root);
         go.AddComponent<GameManager>();
+
+        // 烽火地带模式的运行时逻辑（监听模式开始事件）
+        var extraction = new GameObject("ExtractionMode");
+        extraction.transform.SetParent(_root);
+        extraction.AddComponent<ExtractionMode>();
     }
+
+    /// <summary>顶部滚动提示（拾取物资等）。</summary>
+    public static void NotifyLoot(string message)
+    {
+        _toast = message;
+        _toastUntil = Time.time + 2.6f;
+    }
+
+    public static string ToastText => Time.time < _toastUntil ? _toast : "";
+
+    static string _toast;
+    static float _toastUntil;
 
     Transform BuildPlayer()
     {
@@ -406,6 +423,9 @@ public class GameBootstrap : MonoBehaviour
 
         // 身体：运行时加载 VRM 模型，失败自动退回程序化人形
         var combat = player.AddComponent<PlayerCombat>();
+
+        // 物资增益（医疗/攻击/疾行）
+        player.AddComponent<PlayerBuffs>();
 
         var loader = player.AddComponent<VrmCharacterLoader>();
         loader.motor = motor;
