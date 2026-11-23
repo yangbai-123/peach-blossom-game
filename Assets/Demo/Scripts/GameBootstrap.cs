@@ -167,6 +167,27 @@ public class GameBootstrap : MonoBehaviour
         return go;
     }
 
+    /// <summary>四元数版本的方块，屋顶斜面要用复合旋转。</summary>
+    GameObject BoxRotQ(string name, Vector3 position, Vector3 size, Color color, Quaternion rotation, bool collider = true)
+    {
+        var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        go.name = name;
+        go.transform.SetParent(_root);
+        go.transform.position = position;
+        go.transform.rotation = rotation;
+        go.transform.localScale = size;
+
+        var renderer = go.GetComponent<Renderer>();
+        if (renderer != null)
+        {
+            var mat = MaterialLibrary.For(color);
+            if (mat != null) renderer.sharedMaterial = mat;
+        }
+
+        if (!collider) Destroy(go.GetComponent<Collider>());
+        return go;
+    }
+
     /// <summary>
     /// 山村聚落：环形主路 + 木构民居 + 樱花隧道 + 街边道具，
     /// 南面是生活区，北面的山与剑碑收住主路尽头。
@@ -185,32 +206,41 @@ public class GameBootstrap : MonoBehaviour
         // 空气透视：远景被雾压成灰蓝，近景保持清晰
         RenderSettings.fog = true;
         RenderSettings.fogMode = FogMode.Exponential;
-        RenderSettings.fogDensity = 0.022f;
-        RenderSettings.fogColor = new Color(0.80f, 0.86f, 0.93f);
+        RenderSettings.fogDensity = 0.014f;
+        RenderSettings.fogColor = new Color(0.82f, 0.87f, 0.94f);
 
-        // 远山：一圈低多边形山脊，只做剪影不做碰撞
-        var ridge = new Color(0.52f, 0.60f, 0.74f);
-
-        for (int i = 0; i < 18; i++)
+        // 三层远山：由近到远逐层变淡变高，配合雾形成纵深
+        var layers = new[]
         {
-            float angle = i * Mathf.PI * 2f / 18f + Random.Range(-0.08f, 0.08f);
-            float radius = Random.Range(150f, 230f);
-            float height = Random.Range(28f, 62f);
+            (radius: 95f, spread: 25f, height: 30f, tall: 26f, color: new Color(0.44f, 0.52f, 0.64f), count: 16),
+            (radius: 165f, spread: 35f, height: 45f, tall: 30f, color: new Color(0.55f, 0.63f, 0.75f), count: 20),
+            (radius: 245f, spread: 45f, height: 60f, tall: 34f, color: new Color(0.64f, 0.72f, 0.82f), count: 24),
+        };
 
-            var pos = new Vector3(Mathf.Cos(angle) * radius, height * 0.35f, Mathf.Sin(angle) * radius);
-
-            var peak = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-            peak.name = "FarPeak";
-            peak.transform.SetParent(_root);
-            peak.transform.position = pos;
-            peak.transform.localScale = new Vector3(Random.Range(30f, 55f), height * 0.5f, Random.Range(30f, 55f));
-            Destroy(peak.GetComponent<Collider>());
-
-            var renderer = peak.GetComponent<Renderer>();
-            if (renderer != null)
+        foreach (var layer in layers)
+        {
+            for (int i = 0; i < layer.count; i++)
             {
-                var mat = MaterialLibrary.For(ridge);
-                if (mat != null) renderer.sharedMaterial = mat;
+                float angle = i * Mathf.PI * 2f / layer.count + Random.Range(-0.06f, 0.06f);
+                float radius = layer.radius + Random.Range(-layer.spread, layer.spread);
+                float height = layer.height + Random.Range(0f, layer.tall);
+
+                var pos = new Vector3(Mathf.Cos(angle) * radius, height * 0.33f, Mathf.Sin(angle) * radius);
+
+                var peak = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                peak.name = "FarPeak";
+                peak.transform.SetParent(_root);
+                peak.transform.position = pos;
+                peak.transform.localScale = new Vector3(
+                    Random.Range(28f, 48f), height * 0.5f, Random.Range(28f, 48f));
+                Destroy(peak.GetComponent<Collider>());
+
+                var renderer = peak.GetComponent<Renderer>();
+                if (renderer != null)
+                {
+                    var mat = MaterialLibrary.For(layer.color);
+                    if (mat != null) renderer.sharedMaterial = mat;
+                }
             }
         }
     }
@@ -233,8 +263,27 @@ public class GameBootstrap : MonoBehaviour
 
             float length = Vector3.Distance(p0, p1) * 1.18f;
             float yaw = Mathf.Atan2(p1.x - p0.x, p1.z - p0.z) * Mathf.Rad2Deg;
+            var rot = new Vector3(0f, yaw, 0f);
 
-            BoxRot("Road", mid + Vector3.up * 0.08f, new Vector3(4.6f, 0.22f, length), stoneDark, new Vector3(0f, yaw, 0f));
+            // 石板明暗交替，读起来像一块块铺出来的
+            Color tone = (i % 2 == 0)
+                ? stoneDark
+                : new Color(0.56f, 0.59f, 0.64f);
+
+            BoxRot("Road", mid + Vector3.up * 0.08f, new Vector3(4.6f, 0.22f, length), tone, rot);
+
+            // 接缝：横跨路面的深色细条
+            BoxRot("Seam", p0 + Vector3.up * 0.105f,
+                new Vector3(4.6f, 0.24f, 0.14f), new Color(0.34f, 0.36f, 0.40f), rot, false);
+
+            // 潮湿反光：偶尔一块偏亮的水迹
+            if (i % 3 == 0)
+            {
+                var wet = mid + Vector3.up * 0.108f;
+                BoxRot("WetPatch", wet + new Vector3(Random.Range(-1.2f, 1.2f), 0f, 0f),
+                    new Vector3(Random.Range(1.4f, 2.4f), 0.235f, Random.Range(0.8f, 1.6f)),
+                    new Color(0.72f, 0.78f, 0.86f), rot, false);
+            }
         }
 
         // 从主环通往北面山路的岔路
@@ -311,14 +360,32 @@ public class GameBootstrap : MonoBehaviour
 
             BoxRot("BeamBelt", pos + Vector3.up * (h * 0.62f), new Vector3(w * 1.02f, 0.28f, d * 1.02f), beam, rot, false);
 
-            // 坡屋顶：两块斜板
-            float pitch = 26f;
+            // 坡屋顶：两块斜板沿屋脊对称，屋脊平行于进深方向
+            float roofHeight = w * 0.34f;
+            float halfWidth = w * 0.5f;
+            float slope = Mathf.Atan2(roofHeight, halfWidth) * Mathf.Rad2Deg;
+            float slabLen = Mathf.Sqrt(halfWidth * halfWidth + roofHeight * roofHeight);
+
+            var yawRot = Quaternion.Euler(0f, yaw, 0f);
+
             foreach (var side in new[] { -1f, 1f })
             {
-                Vector3 offset = Quaternion.Euler(rot) * new Vector3(side * w * 0.26f, h + 0.55f, 0f);
-                BoxRot("Roof", pos + offset,
-                    new Vector3(w * 0.62f, 0.3f, d * 1.22f), roof,
-                    new Vector3(side * pitch, yaw, 0f), false);
+                var localOffset = new Vector3(side * halfWidth * 0.5f, h + roofHeight * 0.5f, 0f);
+                var slabRot = yawRot * Quaternion.Euler(0f, 0f, -side * slope);
+
+                BoxRotQ("Roof", pos + yawRot * localOffset,
+                    new Vector3(slabLen * 1.04f, 0.26f, d * 1.18f), roof, slabRot, false);
+            }
+
+            // 屋脊压条
+            BoxRot("Ridge", pos + Vector3.up * (h + roofHeight),
+                new Vector3(0.34f, 0.26f, d * 1.2f), beam, rot, false);
+
+            // 檐口：沿前后檐口各一条深色横木
+            foreach (var eave in new[] { -1f, 1f })
+            {
+                Vector3 ep = pos + yawRot * new Vector3(0f, h + 0.12f, eave * (d * 0.5f + 0.1f));
+                BoxRot("Eave", ep, new Vector3(w * 1.08f, 0.22f, 0.24f), beam, rot, false);
             }
 
             // 窗户：暖黄自发光
@@ -342,6 +409,21 @@ public class GameBootstrap : MonoBehaviour
             light.range = 7f;
             light.intensity = 1.6f;
             light.shadows = LightShadows.None;
+
+            // 灯光洒在地面的暖色光池（点光源在低端设备上衰减得厉害，用贴片补）
+            var pool = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            pool.name = "LightPool";
+            pool.transform.SetParent(_root);
+            pool.transform.position = new Vector3(lanternPos.x, 0.115f, lanternPos.z);
+            pool.transform.localScale = new Vector3(3.6f, 0.008f, 3.6f);
+            Destroy(pool.GetComponent<Collider>());
+
+            var poolRenderer = pool.GetComponent<Renderer>();
+            if (poolRenderer != null)
+            {
+                var mat = MaterialLibrary.For(new Color(0.96f, 0.84f, 0.64f));
+                if (mat != null) poolRenderer.sharedMaterial = mat;
+            }
         }
     }
 
@@ -721,8 +803,8 @@ public class GameBootstrap : MonoBehaviour
 
             foreach (var spot in _cloudSpots)
             {
-                PropLoader.Spawn("cloud", spot, 9f, Random.Range(0f, 360f));
-                PropLoader.Spawn("cloud", spot + new Vector3(8f, -2f, 6f), 6f, Random.Range(0f, 360f));
+                PropLoader.Spawn("cloud", spot + Vector3.up * 18f, 12f, Random.Range(0f, 360f));
+                PropLoader.Spawn("cloud", spot + new Vector3(10f, 14f, 8f), 8f, Random.Range(0f, 360f));
             }
 
             Debug.Log("[prop] 云已替换为开源模型");
