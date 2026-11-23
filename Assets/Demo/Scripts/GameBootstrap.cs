@@ -449,19 +449,23 @@ public class GameBootstrap : MonoBehaviour
             cc.slopeLimit = 50f;
             cc.stepOffset = 0.3f;
 
+            // 外观图元都挂在 BodyPrims 下，VRM 模型加载后整体隐藏
+            var prims = new GameObject("BodyPrims");
+            prims.transform.SetParent(enemy.transform, false);
+
             var body = Prim(PrimitiveType.Capsule, "Body", Vector3.zero,
-                new Vector3(0.62f, 0.7f, 0.62f), new Color(0.32f, 0.18f, 0.26f), false, enemy.transform);
+                new Vector3(0.62f, 0.7f, 0.62f), new Color(0.32f, 0.18f, 0.26f), false, prims.transform);
             body.transform.localPosition = new Vector3(0f, 0.7f, 0f);
 
             var head = Prim(PrimitiveType.Sphere, "Head", Vector3.zero,
-                new Vector3(0.44f, 0.42f, 0.44f), new Color(0.22f, 0.14f, 0.2f), false, enemy.transform);
+                new Vector3(0.44f, 0.42f, 0.44f), new Color(0.22f, 0.14f, 0.2f), false, prims.transform);
             head.transform.localPosition = new Vector3(0f, 1.32f, 0f);
 
             // 两点妖火似的眼睛
             for (int i = -1; i <= 1; i += 2)
             {
                 var eye = Prim(PrimitiveType.Sphere, "Eye", Vector3.zero,
-                    new Vector3(0.08f, 0.08f, 0.08f), new Color(1f, 0.72f, 0.35f), false, enemy.transform);
+                    new Vector3(0.08f, 0.08f, 0.08f), new Color(1f, 0.72f, 0.35f), false, prims.transform);
                 eye.transform.localPosition = new Vector3(0.1f * i, 1.34f, 0.2f);
             }
 
@@ -469,7 +473,7 @@ public class GameBootstrap : MonoBehaviour
             for (int i = -1; i <= 1; i += 2)
             {
                 var horn = Prim(PrimitiveType.Cube, "Horn", Vector3.zero,
-                    new Vector3(0.09f, 0.44f, 0.09f), new Color(0.86f, 0.8f, 0.68f), false, enemy.transform);
+                    new Vector3(0.09f, 0.44f, 0.09f), new Color(0.86f, 0.8f, 0.68f), false, prims.transform);
                 horn.transform.localPosition = new Vector3(0.17f * i, 1.62f, 0f);
                 horn.transform.localRotation = Quaternion.Euler(0f, 0f, -20f * i);
             }
@@ -478,7 +482,7 @@ public class GameBootstrap : MonoBehaviour
             for (int i = -1; i <= 1; i += 2)
             {
                 var arm = Prim(PrimitiveType.Cube, "Arm", Vector3.zero,
-                    new Vector3(0.12f, 0.52f, 0.12f), new Color(0.3f, 0.17f, 0.24f), false, enemy.transform);
+                    new Vector3(0.12f, 0.52f, 0.12f), new Color(0.3f, 0.17f, 0.24f), false, prims.transform);
                 arm.transform.localPosition = new Vector3(0.37f * i, 0.86f, 0.02f);
                 arm.transform.localRotation = Quaternion.Euler(0f, 0f, 14f * i);
             }
@@ -501,6 +505,11 @@ public class GameBootstrap : MonoBehaviour
             hitboxCol.direction = 1;
 
             enemy.AddComponent<Enemy>();
+
+            // 模型就绪后自动替换上面的程序化图元
+            var visual = enemy.AddComponent<VrmMonsterVisual>();
+            visual.prims = prims.transform;
+            visual.targetHeight = 1.55f;
         }
     }
 

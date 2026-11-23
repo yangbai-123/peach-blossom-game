@@ -78,6 +78,31 @@ public class Enemy : MonoBehaviour
         _health.Died += OnDied;
     }
 
+    /// <summary>
+    /// 外观被替换（例如换成 VRM 模型）后重新收集渲染器，
+    /// 否则受击闪白还是作用在旧的程序化图元上。
+    /// </summary>
+    public void RefreshVisuals()
+    {
+        _renderers = GetComponentsInChildren<Renderer>(true);
+        _baseColors = new Color[_renderers.Length];
+
+        for (int i = 0; i < _renderers.Length; i++)
+        {
+            if (_renderers[i] == null) continue;
+
+            // 每只怪物独立材质，避免闪白串到所有怪身上
+            if (_renderers[i].sharedMaterial != null)
+                _renderers[i].material = new Material(_renderers[i].sharedMaterial);
+
+            _baseColors[i] = _renderers[i].material != null && _renderers[i].material.HasProperty("_Color")
+                ? _renderers[i].material.color
+                : Color.white;
+        }
+
+        RestoreTint();
+    }
+
     void OnDestroy()
     {
         if (_health == null) return;
