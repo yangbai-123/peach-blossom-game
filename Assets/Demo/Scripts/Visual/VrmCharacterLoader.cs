@@ -17,20 +17,40 @@ public class VrmCharacterLoader : MonoBehaviour
 
     public RuntimeAnimatorController animatorController;
 
+    GameObject _model;
+    bool _fallbackUsed;
+
     void Start()
     {
-        Debug.Log("[vrm] Start 执行，准备加载模型");
-        LoadAsync();
+        ApplyCharacter(CharacterCatalog.Selected.Resource);
     }
 
-    async void LoadAsync()
+    /// <summary>切换角色：销毁旧模型并重新加载。</summary>
+    public void Select(string resourceName)
     {
-        var bytes = Resources.Load<TextAsset>("Models/character");
-        Debug.Log($"[vrm] 资源读取: {(bytes != null ? bytes.bytes.Length + " 字节" : "NULL")}");
+        if (_model != null)
+        {
+            Destroy(_model);
+            _model = null;
+        }
+
+        ApplyCharacter(resourceName);
+    }
+
+    void ApplyCharacter(string resourceName)
+    {
+        Debug.Log("[vrm] 加载角色: " + resourceName);
+        LoadAsync(resourceName);
+    }
+
+    async void LoadAsync(string resourceName)
+    {
+        var bytes = Resources.Load<TextAsset>("Models/" + resourceName);
+        Debug.Log($"[vrm] 资源读取 {resourceName}: {(bytes != null ? bytes.bytes.Length + " 字节" : "NULL")}");
 
         if (bytes == null)
         {
-            Debug.LogWarning("[vrm] 找不到 Models/character.bytes，使用程序化角色");
+            Debug.LogWarning($"[vrm] 找不到 Models/{resourceName}.bytes，使用程序化角色");
             Fallback();
             return;
         }
@@ -39,7 +59,7 @@ public class VrmCharacterLoader : MonoBehaviour
         {
             // ImmediateCaller 是同步执行：WebGL 下用 RuntimeOnlyAwaitCaller 会卡住不恢复
             var instance = await VrmUtility.LoadBytesAsync(
-                "character.vrm", bytes.bytes, new ImmediateCaller());
+                resourceName + ".vrm", bytes.bytes, new ImmediateCaller());
 
             instance.ShowMeshes();
 
@@ -59,6 +79,7 @@ public class VrmCharacterLoader : MonoBehaviour
 
             AttachSword(root);
 
+            _model = root;
             Debug.Log("[vrm] 模型加载完成: " + root.name);
         }
         catch (System.Exception e)
@@ -70,6 +91,9 @@ public class VrmCharacterLoader : MonoBehaviour
 
     void Fallback()
     {
+        if (_fallbackUsed) return;
+        _fallbackUsed = true;
+
         var rig = gameObject.AddComponent<HumanoidRig>();
         rig.motor = motor;
         rig.combat = combat;

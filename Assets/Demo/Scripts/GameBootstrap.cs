@@ -547,6 +547,7 @@ public class GameBootstrap : MonoBehaviour
         gameHud.motor = target.GetComponent<PlayerMotor>();
         gameHud.playerHealth = target.GetComponent<Health>();
         gameHud.combat = target.GetComponent<PlayerCombat>();
+        gameHud.characterLoader = target.GetComponent<VrmCharacterLoader>();
 
         // 触屏控制（非触屏设备不显示）
         var touch = new GameObject("TouchControls");

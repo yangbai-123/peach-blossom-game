@@ -10,6 +10,7 @@ public class GameHUD : MonoBehaviour
     public PlayerMotor motor;
     public Health playerHealth;
     public PlayerCombat combat;
+    public VrmCharacterLoader characterLoader;
 
     [Header("立绘")]
     public float portraitWidth = 132f;
@@ -95,6 +96,8 @@ public class GameHUD : MonoBehaviour
             MobileInput.Enabled ? "点击屏幕开始" : "点击或按任意键开始", _body);
         _body.normal.textColor = c;
 
+        DrawCharacterCards(w, h);
+
         var hintRect = new Rect(16f, h - 52f * _scale, 780f, 42f * _scale);
         DrawRect(hintRect, new Color(0f, 0f, 0f, 0.38f));
         GUI.Label(new Rect(hintRect.x + 8f, hintRect.y + 4f, hintRect.width, hintRect.height),
@@ -102,9 +105,98 @@ public class GameHUD : MonoBehaviour
                 ? "左下摇杆 移动　右侧拖动 视角　右上 视角切换"
                 : "WASD 移动　Shift 冲刺　空格 跳跃　左键 挥剑　V 视角　鼠标 视角", _small);
 
-        // 开始
-        if (Event.current.type == EventType.MouseDown || Input.anyKeyDown)
+        // 开始与角色选择在 Update 里处理（OnGUI 在 WebGL 收不到鼠标事件）
+        _cardClicked = false;
+    }
+
+    bool _cardClicked;
+
+    /// <summary>
+    /// 卡片矩形（GUI 坐标，左上原点）。绘制和点击判定共用，保证一致。
+    /// </summary>
+    Rect CardRect(int index)
+    {
+        float w = Screen.width;
+        float h = Screen.height;
+
+        float cardW = w * 0.34f;
+        float cardH = h * 0.13f;
+        float x = w * 0.055f;
+        float y0 = h * 0.44f;
+        float gap = h * 0.018f;
+
+        return new Rect(x, y0 + index * (cardH + gap), cardW, cardH);
+    }
+
+    void SelectCharacter(int index)
+    {
+        if (CharacterCatalog.SelectedIndex == index) return;
+
+        CharacterCatalog.SelectedIndex = index;
+        if (characterLoader != null)
+            characterLoader.Select(CharacterCatalog.Entries[index].Resource);
+    }
+
+    void Update()
+    {
+        if (GameManager.Instance == null || GameManager.Instance.State != GameState.Title) return;
+
+        // WebGL 的 OnGUI 收不到鼠标事件，这里直接用 Input 做命中判定
+        if (Input.GetMouseButtonDown(0))
+        {
+            var mouse = new Vector2(Input.mousePosition.x, Screen.height - Input.mousePosition.y);
+
+            for (int i = 0; i < CharacterCatalog.Entries.Length; i++)
+            {
+                if (!CardRect(i).Contains(mouse)) continue;
+
+                SelectCharacter(i);
+                _cardClicked = true;
+                return;
+            }
+        }
+
+        if (_cardClicked)
+        {
+            _cardClicked = false;
+            return;
+        }
+
+        if (Input.anyKeyDown || Input.GetMouseButtonDown(0))
             GameManager.Instance.StartGame();
+    }
+
+    /// <summary>标题界面的角色选择卡片（只负责绘制，点击在 Update 里判定）。</summary>
+    void DrawCharacterCards(float w, float h)
+    {
+        var entries = CharacterCatalog.Entries;
+        if (entries == null || entries.Length == 0) return;
+
+        GUI.Label(new Rect(w * 0.055f, h * 0.44f - h * 0.07f, w * 0.34f, 40f * _scale), "选择角色", _body);
+
+        for (int i = 0; i < entries.Length; i++)
+        {
+            var entry = entries[i];
+            var rect = CardRect(i);
+            bool selected = CharacterCatalog.SelectedIndex == i;
+
+            DrawRect(rect, selected
+                ? new Color(0.12f, 0.18f, 0.30f, 0.88f)
+                : new Color(0.05f, 0.08f, 0.13f, 0.62f));
+
+            // 左侧色条
+            DrawRect(new Rect(rect.x, rect.y, 6f * _scale, rect.height),
+                selected ? entry.Accent : new Color(entry.Accent.r, entry.Accent.g, entry.Accent.b, 0.32f));
+
+            GUI.Label(new Rect(rect.x + 18f * _scale, rect.y + 4f * _scale, rect.width, 38f * _scale),
+                entry.Name, _body);
+            GUI.Label(new Rect(rect.x + 18f * _scale, rect.y + 42f * _scale, rect.width, 30f * _scale),
+                entry.Subtitle, _small);
+
+            if (selected)
+                GUI.Label(new Rect(rect.x + rect.width - 88f * _scale, rect.y + 6f * _scale, 76f * _scale, 30f * _scale),
+                    "已选", _small);
+        }
     }
 
     // ------------------------------------------------------------- 游玩
