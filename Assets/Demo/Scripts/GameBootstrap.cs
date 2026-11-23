@@ -7,7 +7,7 @@ using UnityEngine;
 public class GameBootstrap : MonoBehaviour
 {
     [Header("玩家")]
-    public Vector3 spawnPoint = new Vector3(0f, 0.15f, -12f);
+    public Vector3 spawnPoint = new Vector3(0f, 0.35f, -38f);
 
     [Header("配色")]
     public Color stone = new Color(0.62f, 0.66f, 0.72f);
@@ -52,7 +52,7 @@ public class GameBootstrap : MonoBehaviour
 
     void BuildTerrain()
     {
-        Box("Ground", new Vector3(0f, -0.5f, 0f), new Vector3(70f, 1f, 70f), grass);
+        Box("Ground", new Vector3(0f, -0.5f, -14f), new Vector3(120f, 1f, 120f), grass);
 
         // 上山的路：山脚 → 山腰平台 → 石阶 → 峰顶剑台
         Ramp("RampA", new Vector3(0f, 0.03f, 4f), new Vector3(0f, 2.4f, 12f), 6f, 0.4f, stone);
@@ -73,9 +73,9 @@ public class GameBootstrap : MonoBehaviour
         Box("GateBeam", new Vector3(0f, 4.55f, 29f), new Vector3(7.4f, 0.5f, 0.8f), wood);
 
         // 栏杆：南、东、西三边，北边留给上山的路
-        Railing(-33f, 33f, -33f, true);   // 南（z = -33）
-        Railing(-33f, 33f, 33f, false);   // 东（x = 33）
-        Railing(-33f, 33f, -33f, false);  // 西（x = -33）
+        Railing(-58f, 58f, -62f, true);   // 南（z = -62）
+        Railing(-58f, 58f, 58f, false);   // 东（x = 58）
+        Railing(-58f, 58f, -58f, false);  // 西（x = -58）
 
         BuildLandmarks();
         BuildVillage();
@@ -125,8 +125,8 @@ public class GameBootstrap : MonoBehaviour
         // 竹林：成簇的细竹竿
         for (int cluster = 0; cluster < 6; cluster++)
         {
-            float cx = Random.Range(-30f, 30f);
-            float cz = Random.Range(-30f, 30f);
+            float cx = Random.Range(-50f, 50f);
+            float cz = Random.Range(-56f, 30f);
 
             if (new Vector2(cx, cz).magnitude < 8f) continue;   // 别堵出生点
 
@@ -206,7 +206,7 @@ public class GameBootstrap : MonoBehaviour
         // 空气透视：远景被雾压成灰蓝，近景保持清晰
         RenderSettings.fog = true;
         RenderSettings.fogMode = FogMode.Exponential;
-        RenderSettings.fogDensity = 0.014f;
+        RenderSettings.fogDensity = 0.011f;
         RenderSettings.fogColor = new Color(0.82f, 0.87f, 0.94f);
 
         // 三层远山：由近到远逐层变淡变高，配合雾形成纵深
@@ -247,10 +247,10 @@ public class GameBootstrap : MonoBehaviour
 
     void BuildRingRoad()
     {
-        Vector3 center = new Vector3(0f, 0f, -14f);
-        float rx = 17f;
-        float rz = 13f;
-        int segments = 26;
+        Vector3 center = new Vector3(0f, 0f, -20f);
+        float rx = 24f;
+        float rz = 18f;
+        int segments = 32;
 
         for (int i = 0; i < segments; i++)
         {
@@ -261,14 +261,14 @@ public class GameBootstrap : MonoBehaviour
             var p1 = center + new Vector3(Mathf.Cos(a1) * rx, 0f, Mathf.Sin(a1) * rz);
             var mid = (p0 + p1) * 0.5f;
 
-            float length = Vector3.Distance(p0, p1) * 1.18f;
+            float length = Vector3.Distance(p0, p1) * 1.42f;
             float yaw = Mathf.Atan2(p1.x - p0.x, p1.z - p0.z) * Mathf.Rad2Deg;
             var rot = new Vector3(0f, yaw, 0f);
 
             // 石板明暗交替，读起来像一块块铺出来的
             Color tone = (i % 2 == 0)
                 ? stoneDark
-                : new Color(0.56f, 0.59f, 0.64f);
+                : new Color(0.60f, 0.63f, 0.67f);
 
             BoxRot("Road", mid + Vector3.up * 0.08f, new Vector3(4.6f, 0.22f, length), tone, rot);
 
@@ -282,12 +282,12 @@ public class GameBootstrap : MonoBehaviour
                 var wet = mid + Vector3.up * 0.108f;
                 BoxRot("WetPatch", wet + new Vector3(Random.Range(-1.2f, 1.2f), 0f, 0f),
                     new Vector3(Random.Range(1.4f, 2.4f), 0.235f, Random.Range(0.8f, 1.6f)),
-                    new Color(0.72f, 0.78f, 0.86f), rot, false);
+                    new Color(0.60f, 0.63f, 0.68f), rot, false);
             }
         }
 
         // 从主环通往北面山路的岔路
-        BoxRot("RoadBranch", new Vector3(0f, 0.09f, -1f), new Vector3(4.2f, 0.22f, 14f), stoneDark, Vector3.zero);
+        BoxRot("RoadBranch", new Vector3(0f, 0.09f, 0.5f), new Vector3(4.6f, 0.22f, 12f), stoneDark, Vector3.zero);
     }
 
     void BuildCherryTunnel()
@@ -295,10 +295,10 @@ public class GameBootstrap : MonoBehaviour
         Vector3 center = new Vector3(0f, 0f, -14f);
 
         // 沿主环内侧种树，树冠在路面上方交汇，形成隧道感
-        for (int i = 0; i < 14; i++)
+        for (int i = 0; i < 18; i++)
         {
-            float angle = i * Mathf.PI * 2f / 14f;
-            float radius = 13.2f;
+            float angle = i * Mathf.PI * 2f / 18f;
+            float radius = 18.5f;
 
             var pos = center + new Vector3(Mathf.Cos(angle) * radius, 0f, Mathf.Sin(angle) * radius);
 
@@ -327,10 +327,10 @@ public class GameBootstrap : MonoBehaviour
         var roof = new Color(0.32f, 0.24f, 0.22f);
         var warm = new Color(1f, 0.86f, 0.52f);
 
-        for (int i = 0; i < 7; i++)
+        for (int i = 0; i < 9; i++)
         {
-            float angle = i * Mathf.PI * 2f / 7f + 0.22f;
-            float radius = 23.5f;
+            float angle = i * Mathf.PI * 2f / 9f + 0.22f;
+            float radius = 32f;
 
             var pos = center + new Vector3(Mathf.Cos(angle) * radius, 0f, Mathf.Sin(angle) * radius);
 
@@ -432,10 +432,10 @@ public class GameBootstrap : MonoBehaviour
         Vector3 center = new Vector3(0f, 0f, -14f);
         var benchWood = new Color(0.42f, 0.30f, 0.24f);
 
-        for (int i = 0; i < 10; i++)
+        for (int i = 0; i < 14; i++)
         {
-            float angle = i * Mathf.PI * 2f / 10f + 0.5f;
-            var pos = center + new Vector3(Mathf.Cos(angle) * 19.5f, 0f, Mathf.Sin(angle) * 19.5f);
+            float angle = i * Mathf.PI * 2f / 14f + 0.5f;
+            var pos = center + new Vector3(Mathf.Cos(angle) * 26.5f, 0f, Mathf.Sin(angle) * 26.5f);
             float yaw = Mathf.Atan2(center.x - pos.x, center.z - pos.z) * Mathf.Rad2Deg;
             var rot = new Vector3(0f, yaw, 0f);
 
