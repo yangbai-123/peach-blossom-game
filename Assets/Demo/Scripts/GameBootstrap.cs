@@ -78,6 +78,7 @@ public class GameBootstrap : MonoBehaviour
         Railing(-33f, 33f, -33f, false);  // 西（x = -33）
 
         BuildLandmarks();
+        BuildVillage();
     }
 
     /// <summary>断桥：三段木板，中间留缺口，玩家得跳过去。</summary>
@@ -141,6 +142,241 @@ public class GameBootstrap : MonoBehaviour
 
                 Prim(PrimitiveType.Sphere, "BambooLeaves",
                     pos + Vector3.up * (height - 2.2f), Vector3.one * 0.9f, grass, false);
+            }
+        }
+    }
+
+    /// <summary>带旋转的方块（路面、屋顶、招牌都靠它）。</summary>
+    GameObject BoxRot(string name, Vector3 position, Vector3 size, Color color, Vector3 euler, bool collider = true)
+    {
+        var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        go.name = name;
+        go.transform.SetParent(_root);
+        go.transform.position = position;
+        go.transform.rotation = Quaternion.Euler(euler);
+        go.transform.localScale = size;
+
+        var renderer = go.GetComponent<Renderer>();
+        if (renderer != null)
+        {
+            var mat = MaterialLibrary.For(color);
+            if (mat != null) renderer.sharedMaterial = mat;
+        }
+
+        if (!collider) Destroy(go.GetComponent<Collider>());
+        return go;
+    }
+
+    /// <summary>
+    /// 山村聚落：环形主路 + 木构民居 + 樱花隧道 + 街边道具，
+    /// 南面是生活区，北面的山与剑碑收住主路尽头。
+    /// </summary>
+    void BuildVillage()
+    {
+        BuildSkyAndFog();
+        BuildRingRoad();
+        BuildCherryTunnel();
+        BuildHouses();
+        BuildStreetProps();
+    }
+
+    void BuildSkyAndFog()
+    {
+        // 空气透视：远景被雾压成灰蓝，近景保持清晰
+        RenderSettings.fog = true;
+        RenderSettings.fogMode = FogMode.Exponential;
+        RenderSettings.fogDensity = 0.022f;
+        RenderSettings.fogColor = new Color(0.80f, 0.86f, 0.93f);
+
+        // 远山：一圈低多边形山脊，只做剪影不做碰撞
+        var ridge = new Color(0.52f, 0.60f, 0.74f);
+
+        for (int i = 0; i < 18; i++)
+        {
+            float angle = i * Mathf.PI * 2f / 18f + Random.Range(-0.08f, 0.08f);
+            float radius = Random.Range(150f, 230f);
+            float height = Random.Range(28f, 62f);
+
+            var pos = new Vector3(Mathf.Cos(angle) * radius, height * 0.35f, Mathf.Sin(angle) * radius);
+
+            var peak = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            peak.name = "FarPeak";
+            peak.transform.SetParent(_root);
+            peak.transform.position = pos;
+            peak.transform.localScale = new Vector3(Random.Range(30f, 55f), height * 0.5f, Random.Range(30f, 55f));
+            Destroy(peak.GetComponent<Collider>());
+
+            var renderer = peak.GetComponent<Renderer>();
+            if (renderer != null)
+            {
+                var mat = MaterialLibrary.For(ridge);
+                if (mat != null) renderer.sharedMaterial = mat;
+            }
+        }
+    }
+
+    void BuildRingRoad()
+    {
+        Vector3 center = new Vector3(0f, 0f, -14f);
+        float rx = 17f;
+        float rz = 13f;
+        int segments = 26;
+
+        for (int i = 0; i < segments; i++)
+        {
+            float a0 = i * Mathf.PI * 2f / segments;
+            float a1 = (i + 1) * Mathf.PI * 2f / segments;
+
+            var p0 = center + new Vector3(Mathf.Cos(a0) * rx, 0f, Mathf.Sin(a0) * rz);
+            var p1 = center + new Vector3(Mathf.Cos(a1) * rx, 0f, Mathf.Sin(a1) * rz);
+            var mid = (p0 + p1) * 0.5f;
+
+            float length = Vector3.Distance(p0, p1) * 1.18f;
+            float yaw = Mathf.Atan2(p1.x - p0.x, p1.z - p0.z) * Mathf.Rad2Deg;
+
+            BoxRot("Road", mid + Vector3.up * 0.08f, new Vector3(4.6f, 0.22f, length), stoneDark, new Vector3(0f, yaw, 0f));
+        }
+
+        // 从主环通往北面山路的岔路
+        BoxRot("RoadBranch", new Vector3(0f, 0.09f, -1f), new Vector3(4.2f, 0.22f, 14f), stoneDark, Vector3.zero);
+    }
+
+    void BuildCherryTunnel()
+    {
+        Vector3 center = new Vector3(0f, 0f, -14f);
+
+        // 沿主环内侧种树，树冠在路面上方交汇，形成隧道感
+        for (int i = 0; i < 14; i++)
+        {
+            float angle = i * Mathf.PI * 2f / 14f;
+            float radius = 13.2f;
+
+            var pos = center + new Vector3(Mathf.Cos(angle) * radius, 0f, Mathf.Sin(angle) * radius);
+
+            float trunkH = Random.Range(3.4f, 4.6f);
+            Prim(PrimitiveType.Cylinder, "CherryTrunk", pos + Vector3.up * (trunkH * 0.5f),
+                new Vector3(0.32f, trunkH * 0.5f, 0.32f), wood, true);
+
+            // 树冠偏向路心，让枝条在头顶交叠
+            Vector3 inward = (center - pos).normalized * Random.Range(1.6f, 2.6f);
+            var canopy = pos + Vector3.up * (trunkH + 1.5f) + inward;
+
+            Prim(PrimitiveType.Sphere, "CherryCanopy", canopy,
+                new Vector3(Random.Range(2.4f, 3.0f), Random.Range(1.8f, 2.3f), Random.Range(2.4f, 3.0f)),
+                blossom, false);
+
+            Prim(PrimitiveType.Sphere, "CherryCanopy", canopy + new Vector3(1.8f, 0.5f, 0.8f),
+                new Vector3(2.6f, 2.0f, 2.6f), blossom, false);
+        }
+    }
+
+    void BuildHouses()
+    {
+        Vector3 center = new Vector3(0f, 0f, -14f);
+        var wall = new Color(0.90f, 0.86f, 0.78f);
+        var beam = new Color(0.28f, 0.20f, 0.16f);
+        var roof = new Color(0.32f, 0.24f, 0.22f);
+        var warm = new Color(1f, 0.86f, 0.52f);
+
+        for (int i = 0; i < 7; i++)
+        {
+            float angle = i * Mathf.PI * 2f / 7f + 0.22f;
+            float radius = 23.5f;
+
+            var pos = center + new Vector3(Mathf.Cos(angle) * radius, 0f, Mathf.Sin(angle) * radius);
+
+            // 房子朝向路心
+            float yaw = Mathf.Atan2(center.x - pos.x, center.z - pos.z) * Mathf.Rad2Deg;
+            var rot = new Vector3(0f, yaw, 0f);
+
+            float w = Random.Range(6.5f, 8.5f);
+            float d = Random.Range(5.5f, 7f);
+            float h = Random.Range(4.2f, 5.6f);
+
+            // 墙体
+            BoxRot("HouseWall", pos + Vector3.up * (h * 0.5f), new Vector3(w, h, d), wall, rot);
+
+            // 木构架：四角立柱 + 腰线
+            float halfW = w * 0.5f;
+            float halfD = d * 0.5f;
+
+            foreach (var sx in new[] { -1f, 1f })
+            {
+                foreach (var sz in new[] { -1f, 1f })
+                {
+                    Vector3 corner = pos + Quaternion.Euler(rot) * new Vector3(sx * halfW, h * 0.5f, sz * halfD);
+                    BoxRot("Beam", corner, new Vector3(0.32f, h, 0.32f), beam, rot, false);
+                }
+            }
+
+            BoxRot("BeamBelt", pos + Vector3.up * (h * 0.62f), new Vector3(w * 1.02f, 0.28f, d * 1.02f), beam, rot, false);
+
+            // 坡屋顶：两块斜板
+            float pitch = 26f;
+            foreach (var side in new[] { -1f, 1f })
+            {
+                Vector3 offset = Quaternion.Euler(rot) * new Vector3(side * w * 0.26f, h + 0.55f, 0f);
+                BoxRot("Roof", pos + offset,
+                    new Vector3(w * 0.62f, 0.3f, d * 1.22f), roof,
+                    new Vector3(side * pitch, yaw, 0f), false);
+            }
+
+            // 窗户：暖黄自发光
+            for (int win = -1; win <= 1; win += 2)
+            {
+                Vector3 wp = pos + Quaternion.Euler(rot) * new Vector3(win * w * 0.24f, h * 0.45f, -halfD - 0.02f);
+                BoxRot("Window", wp, new Vector3(1.3f, 1.1f, 0.08f), warm, rot, false);
+            }
+
+            // 檐下灯笼
+            Vector3 lanternPos = pos + Quaternion.Euler(rot) * new Vector3(0f, h - 0.5f, -halfD - 0.35f);
+            Prim(PrimitiveType.Sphere, "Lantern", lanternPos, Vector3.one * 0.5f, new Color(1f, 0.55f, 0.45f), false);
+
+            var glow = new GameObject("LanternLight");
+            glow.transform.SetParent(_root);
+            glow.transform.position = lanternPos;
+
+            var light = glow.AddComponent<Light>();
+            light.type = LightType.Point;
+            light.color = new Color(1f, 0.72f, 0.45f);
+            light.range = 7f;
+            light.intensity = 1.6f;
+            light.shadows = LightShadows.None;
+        }
+    }
+
+    void BuildStreetProps()
+    {
+        Vector3 center = new Vector3(0f, 0f, -14f);
+        var benchWood = new Color(0.42f, 0.30f, 0.24f);
+
+        for (int i = 0; i < 10; i++)
+        {
+            float angle = i * Mathf.PI * 2f / 10f + 0.5f;
+            var pos = center + new Vector3(Mathf.Cos(angle) * 19.5f, 0f, Mathf.Sin(angle) * 19.5f);
+            float yaw = Mathf.Atan2(center.x - pos.x, center.z - pos.z) * Mathf.Rad2Deg;
+            var rot = new Vector3(0f, yaw, 0f);
+
+            switch (i % 3)
+            {
+                case 0: // 长椅
+                    BoxRot("BenchSeat", pos + Vector3.up * 0.5f, new Vector3(2.2f, 0.18f, 0.7f), benchWood, rot);
+                    BoxRot("BenchBack", pos + Vector3.up * 0.85f + Quaternion.Euler(rot) * new Vector3(0f, 0f, -0.3f),
+                        new Vector3(2.2f, 0.5f, 0.14f), benchWood, rot, false);
+                    break;
+
+                case 1: // 路灯
+                    Prim(PrimitiveType.Cylinder, "LampPost", pos + Vector3.up * 1.7f,
+                        new Vector3(0.16f, 1.7f, 0.16f), new Color(0.30f, 0.28f, 0.26f), true);
+                    Prim(PrimitiveType.Sphere, "LampGlobe", pos + Vector3.up * 3.6f,
+                        Vector3.one * 0.55f, new Color(1f, 0.92f, 0.66f), false);
+                    break;
+
+                default: // 木箱堆
+                    BoxRot("Crate", pos + Vector3.up * 0.45f, Vector3.one * 0.9f, benchWood, rot);
+                    BoxRot("Crate", pos + Vector3.up * 1.25f, Vector3.one * 0.75f, benchWood,
+                        new Vector3(0f, yaw + 18f, 0f));
+                    break;
             }
         }
     }
