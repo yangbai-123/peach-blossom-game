@@ -63,6 +63,23 @@ public class GameHUD : MonoBehaviour
                 DrawEnding();
                 break;
         }
+
+        DrawOrientationHint();
+    }
+
+    /// <summary>竖屏时提示横屏（不能锁定方向的浏览器靠这个引导）。</summary>
+    void DrawOrientationHint()
+    {
+        if (!MobileInput.Enabled || !MobileOrientation.IsPortrait) return;
+
+        float w = Screen.width;
+        float h = Screen.height;
+
+        float barH = 64f * _scale;
+        var rect = new Rect(w * 0.08f, h * 0.06f, w * 0.84f, barH);
+
+        DrawRect(rect, new Color(0.05f, 0.09f, 0.16f, 0.85f));
+        GUI.Label(rect, "请把手机横过来游玩 · 旋转设备", _body);
     }
 
     // ------------------------------------------------------------- 标题
@@ -139,7 +156,13 @@ public class GameHUD : MonoBehaviour
 
     void Update()
     {
-        if (GameManager.Instance == null || GameManager.Instance.State != GameState.Title) return;
+        if (GameManager.Instance == null) return;
+
+        // 移动端第一次触摸就请求全屏 + 横屏锁定（浏览器要求用户手势）
+        if (MobileInput.Enabled && (Input.GetMouseButtonDown(0) || Input.touchCount > 0))
+            MobileOrientation.RequestLandscape();
+
+        if (GameManager.Instance.State != GameState.Title) return;
 
         // WebGL 的 OnGUI 收不到鼠标事件，这里直接用 Input 做命中判定
         if (Input.GetMouseButtonDown(0))
