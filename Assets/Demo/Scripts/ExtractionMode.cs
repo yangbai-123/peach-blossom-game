@@ -60,6 +60,11 @@ public class ExtractionMode : MonoBehaviour
     {
         Playing = true;
         TimeLeft = timeLimit;
+
+        // 两个撤离点随机选一个：峰顶剑台 / 山腰西台
+        zoneCenter = Random.value > 0.5f
+            ? new Vector3(0f, 5.4f, 32f)
+            : new Vector3(-14f, 3.8f, 20f);
         ZoneActive = false;
         ExtractProgress = 0f;
         LootCollected = 0;

@@ -54,11 +54,17 @@ public class GameBootstrap : MonoBehaviour
     {
         Box("Ground", new Vector3(0f, -0.5f, 0f), new Vector3(70f, 1f, 70f), grass);
 
-        // 上山的路：两段坡 + 两级平台
+        // 上山的路：山脚 → 山腰平台 → 石阶 → 峰顶剑台
         Ramp("RampA", new Vector3(0f, 0.03f, 4f), new Vector3(0f, 2.4f, 12f), 6f, 0.4f, stone);
         Box("HillPlatform", new Vector3(0f, 2.0f, 16f), new Vector3(14f, 0.8f, 10f), grass);
 
-        Ramp("RampB", new Vector3(0f, 2.43f, 20f), new Vector3(0f, 5.2f, 28f), 6f, 0.4f, stone);
+        // 山腰西侧的独立台地，靠断桥连接（要跳过去）
+        Box("SpurPlatform", new Vector3(-14f, 2.0f, 20f), new Vector3(8f, 0.8f, 8f), grass);
+        BrokenBridge();
+
+        // 石阶：比斜坡更有"登山"的感觉
+        Stairs(new Vector3(0f, 2.4f, 21f), 8, 0.36f, 0.9f, 4.6f, stone);
+
         Box("ShrinePlatform", new Vector3(0f, 4.8f, 32f), new Vector3(12f, 0.8f, 10f), stone);
 
         // 山门：两根柱子 + 横梁，纯装饰
@@ -70,6 +76,73 @@ public class GameBootstrap : MonoBehaviour
         Railing(-33f, 33f, -33f, true);   // 南（z = -33）
         Railing(-33f, 33f, 33f, false);   // 东（x = 33）
         Railing(-33f, 33f, -33f, false);  // 西（x = -33）
+
+        BuildLandmarks();
+    }
+
+    /// <summary>断桥：三段木板，中间留缺口，玩家得跳过去。</summary>
+    void BrokenBridge()
+    {
+        float y = 2.55f;
+        float z = 18f;
+
+        Box("BridgeA", new Vector3(-8.6f, y, z), new Vector3(2.4f, 0.25f, 2.2f), wood);
+        Box("BridgeB", new Vector3(-11.4f, y + 0.15f, z + 0.3f), new Vector3(1.6f, 0.25f, 2.0f), wood);
+
+        // 断口两侧的残桩
+        Box("BridgeStumpA", new Vector3(-9.8f, y + 0.1f, z - 1.2f), new Vector3(0.35f, 1.1f, 0.35f), wood);
+        Box("BridgeStumpB", new Vector3(-10.6f, y + 0.3f, z + 1.4f), new Vector3(0.35f, 1.3f, 0.35f), wood);
+    }
+
+    /// <summary>石阶：一级一级的薄台阶。</summary>
+    void Stairs(Vector3 start, int count, float rise, float run, float width, Color color)
+    {
+        for (int i = 0; i < count; i++)
+        {
+            var pos = start + new Vector3(0f, i * rise, i * run + run * 0.5f);
+            Box("Step", pos, new Vector3(width, rise * 1.6f, run * 1.05f), color);
+        }
+    }
+
+    /// <summary>山腰的亭子、竹丛等景观。</summary>
+    void BuildLandmarks()
+    {
+        // 亭子：四柱 + 两层顶
+        Vector3 pavilion = new Vector3(0f, 2.4f, 14f);
+
+        for (int i = 0; i < 4; i++)
+        {
+            float sx = (i % 2 == 0) ? -2.2f : 2.2f;
+            float sz = (i < 2) ? -2.2f : 2.2f;
+            Box("PavilionPillar", pavilion + new Vector3(sx, 1.6f, sz),
+                new Vector3(0.3f, 3.2f, 0.3f), wood);
+        }
+
+        Box("PavilionRoof", pavilion + new Vector3(0f, 3.4f, 0f), new Vector3(6.2f, 0.3f, 6.2f), wood);
+        Box("PavilionRoofTop", pavilion + new Vector3(0f, 3.85f, 0f), new Vector3(3.6f, 0.35f, 3.6f), blossom);
+
+        // 竹林：成簇的细竹竿
+        for (int cluster = 0; cluster < 6; cluster++)
+        {
+            float cx = Random.Range(-30f, 30f);
+            float cz = Random.Range(-30f, 30f);
+
+            if (new Vector2(cx, cz).magnitude < 8f) continue;   // 别堵出生点
+
+            for (int b = 0; b < 5; b++)
+            {
+                Vector3 pos = new Vector3(
+                    cx + Random.Range(-1.6f, 1.6f), 2.4f,
+                    cz + Random.Range(-1.6f, 1.6f));
+
+                float height = Random.Range(3.5f, 6f);
+                Prim(PrimitiveType.Cylinder, "Bamboo", pos + Vector3.up * (height * 0.5f - 2.4f),
+                    new Vector3(0.09f, height * 0.5f, 0.09f), grass, false);
+
+                Prim(PrimitiveType.Sphere, "BambooLeaves",
+                    pos + Vector3.up * (height - 2.2f), Vector3.one * 0.9f, grass, false);
+            }
+        }
     }
 
     void Railing(float from, float to, float fixedCoord, bool alongX)
@@ -259,20 +332,28 @@ public class GameBootstrap : MonoBehaviour
 
     void BuildPetals()
     {
+        // 三层分布：山脚 4 片、山腰 4 片（含断桥对岸）、峰顶 2 片、浮空岛 2 片
         Vector3[] spots =
         {
+            // 山脚
             new Vector3(0f, 1.1f, 0f),
             new Vector3(6f, 1.1f, 6f),
             new Vector3(-6f, 1.1f, 6f),
-            new Vector3(0f, 3.5f, 16f),
             new Vector3(10f, 1.1f, -4f),
-            new Vector3(-10f, 1.1f, 10f),
-            new Vector3(-24f, 1.1f, 24f),
-            new Vector3(22f, 1.1f, -2f),
+
+            // 山腰：亭子、断桥对岸的独立台地
+            new Vector3(0f, 3.6f, 14f),
+            new Vector3(5f, 3.6f, 18f),
+            new Vector3(-4f, 3.6f, 12f),
+            new Vector3(-14f, 3.9f, 20f),
+
+            // 峰顶剑台
+            new Vector3(0f, 6.8f, 32f),
+            new Vector3(3f, 6.8f, 34f),
+
+            // 浮空岛
             new Vector3(18f, 8.1f, -16f),
             new Vector3(-18f, 10.6f, -14f),
-            new Vector3(0f, 13.6f, -26f),
-            new Vector3(14f, 1.1f, -20f),
         };
 
         foreach (var spot in spots)

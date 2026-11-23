@@ -220,7 +220,7 @@ public class NetDuel : MonoBehaviour
         var bootstrap = FindFirstObjectByType<GameBootstrap>();
         if (bootstrap == null) return;
 
-        Vector3 spot = host ? new Vector3(0f, 0.4f, -8f) : new Vector3(0f, 0.4f, 8f);
+        Vector3 spot = host ? new Vector3(-5f, 3.4f, 18f) : new Vector3(5f, 3.4f, 18f);
         bootstrap.Teleport(spot);
     }
 
