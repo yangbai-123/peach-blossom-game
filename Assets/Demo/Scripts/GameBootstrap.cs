@@ -270,11 +270,19 @@ public class GameBootstrap : MonoBehaviour
                 ? stoneDark
                 : new Color(0.60f, 0.63f, 0.67f);
 
-            BoxRot("Road", mid + Vector3.up * 0.08f, new Vector3(4.6f, 0.22f, length), tone, rot);
+            BoxRot("Road", mid + Vector3.up * 0.08f, new Vector3(3.4f, 0.22f, length), tone, rot);
+
+            // 两侧碎石边，压住路缘
+            foreach (var side in new[] { -1f, 1f })
+            {
+                Vector3 edge = mid + Quaternion.Euler(rot) * new Vector3(side * 1.95f, 0f, 0f) + Vector3.up * 0.055f;
+                BoxRot("RoadEdge", edge, new Vector3(0.6f, 0.2f, length),
+                    new Color(0.52f, 0.55f, 0.58f), rot, false);
+            }
 
             // 接缝：横跨路面的深色细条
             BoxRot("Seam", p0 + Vector3.up * 0.105f,
-                new Vector3(4.6f, 0.24f, 0.14f), new Color(0.34f, 0.36f, 0.40f), rot, false);
+                new Vector3(3.4f, 0.24f, 0.14f), new Color(0.34f, 0.36f, 0.40f), rot, false);
 
             // 潮湿反光：偶尔一块偏亮的水迹
             if (i % 3 == 0)
@@ -287,7 +295,7 @@ public class GameBootstrap : MonoBehaviour
         }
 
         // 从主环通往北面山路的岔路
-        BoxRot("RoadBranch", new Vector3(0f, 0.09f, 0.5f), new Vector3(4.6f, 0.22f, 12f), stoneDark, Vector3.zero);
+        BoxRot("RoadBranch", new Vector3(0f, 0.09f, 0.5f), new Vector3(3.4f, 0.22f, 12f), stoneDark, Vector3.zero);
     }
 
     void BuildCherryTunnel()
@@ -388,12 +396,29 @@ public class GameBootstrap : MonoBehaviour
                 BoxRot("Eave", ep, new Vector3(w * 1.08f, 0.22f, 0.24f), beam, rot, false);
             }
 
-            // 窗户：暖黄自发光
+            // 窗户：木框 + 内嵌暖光 + 窗台
             for (int win = -1; win <= 1; win += 2)
             {
-                Vector3 wp = pos + Quaternion.Euler(rot) * new Vector3(win * w * 0.24f, h * 0.45f, -halfD - 0.02f);
-                BoxRot("Window", wp, new Vector3(1.3f, 1.1f, 0.08f), warm, rot, false);
+                Vector3 wp = pos + yawRot * new Vector3(win * w * 0.24f, h * 0.46f, -halfD - 0.045f);
+
+                BoxRot("WindowFrame", wp, new Vector3(1.55f, 1.35f, 0.1f), beam, rot, false);
+                BoxRot("WindowGlass", wp + yawRot * new Vector3(0f, 0f, -0.07f),
+                    new Vector3(1.22f, 1.02f, 0.06f), warm, rot, false);
+                BoxRot("WindowSill", wp + yawRot * new Vector3(0f, -0.78f, -0.12f),
+                    new Vector3(1.75f, 0.12f, 0.36f), beam, rot, false);
             }
+
+            // 门：门框 + 门板 + 门楣
+            Vector3 door = pos + yawRot * new Vector3(0f, 1.2f, -halfD - 0.05f);
+            BoxRot("DoorFrame", door, new Vector3(1.55f, 2.45f, 0.12f), beam, rot, false);
+            BoxRot("DoorPanel", door + yawRot * new Vector3(0f, 0f, -0.08f),
+                new Vector3(1.26f, 2.2f, 0.08f), new Color(0.36f, 0.24f, 0.18f), rot, false);
+            BoxRot("DoorLintel", door + yawRot * new Vector3(0f, 1.32f, -0.1f),
+                new Vector3(1.9f, 0.18f, 0.3f), beam, rot, false);
+
+            // 檐下阴影：靠顶的墙面压暗，模拟挑檐遮挡
+            BoxRot("EaveShadow", pos + yawRot * new Vector3(0f, h - 0.38f, -halfD - 0.03f),
+                new Vector3(w * 0.98f, 0.75f, 0.07f), new Color(0.74f, 0.70f, 0.62f), rot, false);
 
             // 檐下灯笼
             Vector3 lanternPos = pos + Quaternion.Euler(rot) * new Vector3(0f, h - 0.5f, -halfD - 0.35f);

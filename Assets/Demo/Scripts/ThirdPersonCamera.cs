@@ -148,16 +148,30 @@ public class ThirdPersonCamera : MonoBehaviour
         Vector3 pivot = target.position + pivotOffset;
         Vector3 desired = pivot - rotation * Vector3.forward * distance;
 
-        // 遮挡回避：镜头与视点之间有东西就把镜头拉近
-        if (Physics.Linecast(pivot, desired, out RaycastHit hit, ~0, QueryTriggerInteraction.Ignore))
+        // 遮挡回避：镜头与视点之间有东西就把镜头拉近。
+        // 用 SphereCast 而不是 Linecast —— 射线起点在角色胶囊内部，
+        // Linecast 会立刻命中自己，导致镜头被贴到脸上。
+        Vector3 pullDir = (desired - pivot).normalized;
+        float allowed = distance;
+
+        if (Physics.SphereCast(pivot, 0.28f, pullDir, out RaycastHit pullHit, distance, ~0, QueryTriggerInteraction.Ignore))
         {
-            Vector3 dir = (desired - pivot).normalized;
-            desired = hit.point - dir * 0.2f;
+            if (pullHit.collider != null && !IsSelfCollider(pullHit.collider))
+                allowed = Mathf.Clamp(pullHit.distance - 0.15f, 1.2f, distance);
         }
+
+        desired = pivot + pullDir * allowed;
 
         float t = 1f - Mathf.Exp(-positionSmooth * Time.deltaTime);
         transform.position = Vector3.Lerp(transform.position, desired, t);
         transform.rotation = Quaternion.LookRotation(pivot - transform.position, Vector3.up);
+    }
+
+    /// <summary>命中体是不是玩家自己（含子物体）。</summary>
+    bool IsSelfCollider(Collider collider)
+    {
+        if (target == null) return false;
+        return collider.transform.root == target.root;
     }
 
     public void ToggleFirstPerson()
