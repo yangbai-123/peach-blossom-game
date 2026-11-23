@@ -29,6 +29,10 @@ public static class WebGLBuilder
         // 剥离后会报 "class 'SphereCollider' doesn't exist"，导致挥剑判定完全失效。
         PlayerSettings.stripEngineCode = false;
 
+        // 关闭托管代码裁剪：UniGLTF 的 IStorage.Get 等接口方法会被裁掉，
+        // 导致 GLB 解析报 "Attempt to access method 'UniGLTF.IStorage.Get' on type '' failed"
+        PlayerSettings.SetManagedStrippingLevel(BuildTargetGroup.WebGL, ManagedStrippingLevel.Disabled);
+
         // MToon 是 VRM 模型用的着色器，运行时通过 Shader.Find 取，
         // 不放进去会被剥离，模型会变成洋红。
         EnsureShaderIncluded("VRM/MToon");

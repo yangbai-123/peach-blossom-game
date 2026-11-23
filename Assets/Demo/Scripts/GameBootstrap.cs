@@ -42,6 +42,9 @@ public class GameBootstrap : MonoBehaviour
         BuildEnemies();
         BuildCamera(_player);
         BuildHud(_player);
+
+        // 开源道具（CC0，Kenney）异步加载，完成后替换云 / 浮空岛并撒草
+        PropLoader.LoadAll(OnPropsReady);
     }
 
     /// <summary>给导入的人形模型挂一把程序化长剑（VRM 本身没有武器）。</summary>
@@ -164,9 +167,16 @@ public class GameBootstrap : MonoBehaviour
 
     void BuildFloatingIslands()
     {
-        Island(new Vector3(18f, 7f, -16f), 9f);
-        Island(new Vector3(-18f, 9.5f, -14f), 9f);
-        Island(new Vector3(0f, 12.5f, -26f), 8f);
+        _islandSpots = new[]
+        {
+            new Vector3(18f, 7f, -16f),
+            new Vector3(-18f, 9.5f, -14f),
+            new Vector3(0f, 12.5f, -26f),
+        };
+
+        Island(_islandSpots[0], 9f);
+        Island(_islandSpots[1], 9f);
+        Island(_islandSpots[2], 8f);
 
         // 三个地面弹跳台。距离要够远，让抛物线在进入岛的投影之前就升到岛面以上，
         // 否则会撞到浮空岛底面被挡下来（这是之前"上不去"的真正原因）。
@@ -364,12 +374,78 @@ public class GameBootstrap : MonoBehaviour
             new Vector3(0f, 34f, -55f), new Vector3(-55f, 20f, 5f),
         };
 
+        // 先把位置记下来，等开源模型加载完再生成；模型没加载成功就用程序化云
+        _cloudSpots = clouds;
+
         foreach (var c in clouds)
         {
             Prim(PrimitiveType.Sphere, "Cloud", c,
                 new Vector3(22f, 5f, 16f), new Color(0.95f, 0.96f, 1f), false);
         }
     }
+
+    Vector3[] _cloudSpots;
+
+    /// <summary>开源道具加载完成后，用模型替换程序化云与浮空岛、撒草。</summary>
+    void OnPropsReady()
+    {
+        // 目前模型能加载进内存但画面里不显示（材质/变换还在查），
+        // 先关掉替换，避免删掉原来的云和浮空岛造成回退。
+        const bool ReplaceProcedural = false;
+
+        if (!ReplaceProcedural) return;
+
+        if (_cloudSpots != null && PropLoader.Has("cloud"))
+        {
+            foreach (var t in _root.GetComponentsInChildren<Transform>())
+            {
+                if (t.name == "Cloud" || t.name == "CloudBackup") Destroy(t.gameObject);
+            }
+
+            foreach (var spot in _cloudSpots)
+            {
+                PropLoader.Spawn("cloud", spot, 9f, Random.Range(0f, 360f));
+                PropLoader.Spawn("cloud", spot + new Vector3(8f, -2f, 6f), 6f, Random.Range(0f, 360f));
+            }
+
+            Debug.Log("[prop] 云已替换为开源模型");
+        }
+
+        if (PropLoader.Has("island"))
+        {
+            foreach (var t in _root.GetComponentsInChildren<Transform>())
+            {
+                if (t.name == "IslandTop" || t.name == "IslandUnder") Destroy(t.gameObject);
+            }
+
+            foreach (var island in _islandSpots)
+            {
+                var go = PropLoader.Spawn("island", island + Vector3.down * 0.4f, 9f, Random.Range(0f, 360f));
+                if (go != null) go.name = "IslandGrass";
+            }
+        }
+
+        if (PropLoader.Has("grass"))
+        {
+            for (int i = 0; i < 60; i++)
+            {
+                float x = Random.Range(-32f, 32f);
+                float z = Random.Range(-32f, 32f);
+
+                if (Physics.Raycast(new Vector3(x, 20f, z), Vector3.down, out RaycastHit hit, 40f, ~0, QueryTriggerInteraction.Ignore))
+                {
+                    if (hit.point.y > 2f) continue;   // 只撒在平地
+                    PropLoader.Spawn(Random.value > 0.5f ? "grass" : "grass_small",
+                        hit.point, Random.Range(0.8f, 1.4f), Random.Range(0f, 360f));
+                }
+            }
+
+            Debug.Log("[prop] 草地细节已生成");
+        }
+    }
+
+    Vector3[] _islandSpots;
+
 
     // ------------------------------------------------------------ 角色与相机
 

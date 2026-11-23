@@ -11,4 +11,10 @@
   <assembly fullname="UnityEngine.ParticleSystemModule" preserve="all" />
   <assembly fullname="UnityEngine.AnimationModule" preserve="all" />
   <assembly fullname="UnityEngine.IMGUIModule" preserve="all" />
+
+  <!-- 运行时解析 VRM / GLB 用到的库 -->
+  <assembly fullname="UniGLTF" preserve="all" />
+  <assembly fullname="UniGLTF.Utils" preserve="all" />
+  <assembly fullname="UniHumanoid" preserve="all" />
+  <assembly fullname="VRM" preserve="all" />
 </linker>
