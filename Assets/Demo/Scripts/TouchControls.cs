@@ -13,8 +13,8 @@ public class TouchControls : MonoBehaviour
     public bool autoDetect = true;
 
     [Header("摇杆")]
-    public float baseRadius = 78f;
-    public float knobRadius = 34f;
+    public float baseRadius = 92f;
+    public float knobRadius = 42f;
 
     [Header("视角")]
     public float lookSensitivity = 0.35f;
@@ -82,8 +82,8 @@ public class TouchControls : MonoBehaviour
         SprintRect = new Rect(Screen.width - 160f * s, Screen.height - 320f * s, 88f * s, 88f * s);
         ViewRect = new Rect(Screen.width - 112f * s, 24f * s, 88f * s, 88f * s);
 
-        baseRadius = 78f * s;
-        knobRadius = 34f * s;
+        baseRadius = 92f * s;
+        knobRadius = 42f * s;
         _baseCenter = new Vector2(150f * s, Screen.height - 170f * s);
     }
 

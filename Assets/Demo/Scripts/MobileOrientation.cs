@@ -45,10 +45,10 @@ public static class MobileOrientation
     }
 
     /// <summary>
-    /// 页面是否处于"竖屏 + CSS 旋转"状态。
-    /// 此时画布是横屏比例，但浏览器上报的触摸坐标是竖屏空间的，需要还原。
+    /// 页面级旋转已停用：Unity 的渲染尺寸无法跟随 CSS 旋转同步，
+    /// 会造成画面拉伸。保留接口以便以后用别的方案。
     /// </summary>
-    public static bool IsRotated => MobileInput.Enabled && IsPortrait;
+    public static bool IsRotated => false;
 
     /// <summary>
     /// 把 Unity 拿到的触摸坐标（旋转后已错位）还原成横屏画布坐标。

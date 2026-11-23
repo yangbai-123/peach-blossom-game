@@ -35,6 +35,13 @@ public class ThirdPersonCamera : MonoBehaviour
     public bool firstPerson;
     public KeyCode toggleKey = KeyCode.V;
 
+    [Header("视野")]
+    [Tooltip("横屏时的垂直 FOV")]
+    public float landscapeFov = 55f;
+
+    [Tooltip("竖屏时放宽视野，否则左右可视范围太窄")]
+    public float portraitFov = 72f;
+
     float _yaw;
     float _pitch = 15f;
 
@@ -63,6 +70,14 @@ public class ThirdPersonCamera : MonoBehaviour
     void LateUpdate()
     {
         if (target == null) return;
+
+        // 竖屏时放宽视野：竖屏的横向可视范围太窄，跑图会很难受
+        var cam = GetComponent<Camera>();
+        if (cam != null)
+        {
+            float aspect = (float)Screen.width / Mathf.Max(1, Screen.height);
+            cam.fieldOfView = aspect < 1f ? portraitFov : landscapeFov;
+        }
 
         if (Input.GetKeyDown(toggleKey) || (MobileInput.Enabled && MobileInput.ConsumeViewToggle()))
             ToggleFirstPerson();

@@ -67,22 +67,10 @@ public class GameHUD : MonoBehaviour
         DrawOrientationHint();
     }
 
-    /// <summary>竖屏时提示横屏（不能锁定方向的浏览器靠这个引导）。</summary>
+    /// <summary>竖屏提示已停用：竖屏可以直接游玩，不再引导用户旋转。</summary>
     void DrawOrientationHint()
     {
-        if (!MobileInput.Enabled || !MobileOrientation.IsPortrait) return;
-
-        // 只在标题界面提示，游戏中不挡视野
-        if (GameManager.Instance != null && GameManager.Instance.State != GameState.Title) return;
-
-        float w = Screen.width;
-        float h = Screen.height;
-
-        float barH = 64f * _scale;
-        var rect = new Rect(w * 0.08f, h * 0.06f, w * 0.84f, barH);
-
-        DrawRect(rect, new Color(0.05f, 0.09f, 0.16f, 0.85f));
-        GUI.Label(rect, "请把手机横过来游玩 · 旋转设备", _body);
+        // 留空：之前用来提示横屏，现在竖屏布局本身可用
     }
 
     // ------------------------------------------------------------- 标题
