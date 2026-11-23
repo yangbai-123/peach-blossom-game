@@ -109,6 +109,12 @@ public class GameHUD : MonoBehaviour
         DrawLeaderboard(w, h);
         DrawModeButtons(w, h);
 
+        if (GameManager.Instance != null && GameManager.Instance.PendingMode == GameMode.Duel)
+        {
+            _cardClicked = false;
+            return;
+        }
+
         var hintRect = new Rect(16f, h - 52f * _scale, 780f, 42f * _scale);
         DrawRect(hintRect, new Color(0f, 0f, 0f, 0.38f));
         GUI.Label(new Rect(hintRect.x + 8f, hintRect.y + 4f, hintRect.width, hintRect.height),
@@ -179,35 +185,58 @@ public class GameHUD : MonoBehaviour
     // ------------------------------------------------------------- 联机面板
 
     string _roomInput = "";
-    bool _roomFocused;
 
-    Rect NetHostBtn() => new Rect(Screen.width * 0.545f, Screen.height * 0.735f, Screen.width * 0.10f, Screen.height * 0.05f);
-    Rect NetRoomField() => new Rect(Screen.width * 0.655f, Screen.height * 0.735f, Screen.width * 0.10f, Screen.height * 0.05f);
-    Rect NetJoinBtn() => new Rect(Screen.width * 0.765f, Screen.height * 0.735f, Screen.width * 0.08f, Screen.height * 0.05f);
+    Rect NetHostBtn() => new Rect(Screen.width * 0.545f, Screen.height * 0.735f, Screen.width * 0.12f, Screen.height * 0.05f);
+
+    Rect NetCodeDisplay() => new Rect(Screen.width * 0.68f, Screen.height * 0.735f, Screen.width * 0.12f, Screen.height * 0.05f);
+
+    /// <summary>数字键盘：0-9 占前 10 格，10=退格，11=加入。</summary>
+    Rect KeyRect(int index)
+    {
+        float w = Screen.width, h = Screen.height;
+        int col = index % 3;
+        int row = index / 3;
+
+        return new Rect(w * 0.545f + col * (w * 0.064f), h * 0.795f + row * (h * 0.052f), w * 0.056f, h * 0.046f);
+    }
 
     void DrawNetPanel(float w, float h)
     {
         var net = NetDuel.Instance;
         if (net == null) return;
 
-        GUI.Label(new Rect(w * 0.545f, h * 0.695f, w * 0.36f, 28f * _scale), "联机对枪（房间号）", _body);
+        GUI.Label(new Rect(w * 0.545f, h * 0.695f, w * 0.40f, 26f * _scale), "联机对枪 · 4 位房号", _body);
 
-        DrawButtonRow(NetHostBtn(), "创建房间", net.Current == NetDuel.State.Hosting);
+        // 房间号：自己创建时显示，加入时显示已输入
+        string code = net.IsHost && !string.IsNullOrEmpty(net.RoomCode) ? net.RoomCode : _roomInput;
+        string shown = string.IsNullOrEmpty(code) ? "----" : code.PadRight(4, '-');
 
-        var field = NetRoomField();
-        DrawRect(field, new Color(0.05f, 0.08f, 0.14f, 0.9f));
-        GUI.Label(new Rect(field.x + 8f * _scale, field.y + 4f * _scale, field.width, field.height),
-            string.IsNullOrEmpty(_roomInput) ? "房号" : _roomInput, _small);
+        var display = NetCodeDisplay();
+        DrawRect(display, new Color(0.05f, 0.09f, 0.16f, 0.9f));
 
-        DrawButtonRow(NetJoinBtn(), "加入", net.Current == NetDuel.State.Joining);
+        var codeStyle = new GUIStyle(_hud) { alignment = TextAnchor.MiddleCenter };
+        GUI.Label(display, shown, codeStyle);
+
+        DrawButtonRow(NetHostBtn(), net.IsHost ? "重新创建" : "创建房间", net.Current == NetDuel.State.Hosting);
+
+        // 数字键盘
+        for (int i = 0; i < 12; i++)
+        {
+            string label = i switch
+            {
+                9 => "删",
+                10 => "0",
+                11 => "加入",
+                _ => (i + 1).ToString(),
+            };
+
+            // 排列：1 2 3 / 4 5 6 / 7 8 9 / ⌫ 0 加入
+            int cell = i switch { 9 => 9, 10 => 10, 11 => 11, _ => i };
+            DrawButtonRow(KeyRect(cell), label, i == 11);
+        }
 
         if (!string.IsNullOrEmpty(net.Status))
-            GUI.Label(new Rect(w * 0.545f, h * 0.79f, w * 0.40f, 28f * _scale), net.Status, _small);
-
-        string hint = net.Current == NetDuel.State.Playing
-            ? "对局进行中 · 把对手打到 0 血"
-            : "创建后把房间号发给朋友";
-        GUI.Label(new Rect(w * 0.545f, h * 0.82f, w * 0.40f, 26f * _scale), hint, _small);
+            GUI.Label(new Rect(w * 0.545f, h * 0.722f, w * 0.44f, 24f * _scale), net.Status, _small);
     }
 
     bool HandleNetClick(Vector2 mouse)
@@ -216,22 +245,32 @@ public class GameHUD : MonoBehaviour
         if (net == null) return false;
         if (GameManager.Instance == null || GameManager.Instance.PendingMode != GameMode.Duel) return false;
 
-        if (NetHostBtn().Contains(mouse)) { _roomFocused = false; net.Host(); return true; }
-        if (NetRoomField().Contains(mouse)) { _roomFocused = true; return true; }
+        if (NetHostBtn().Contains(mouse)) { net.Host(); return true; }
 
-        if (NetJoinBtn().Contains(mouse))
+        for (int i = 0; i < 12; i++)
         {
-            _roomFocused = false;
-            net.Join(_roomInput);
+            if (!KeyRect(i).Contains(mouse)) continue;
+
+            if (i < 9) AppendDigit((i + 1).ToString());
+            else if (i == 9) { if (_roomInput.Length > 0) _roomInput = _roomInput.Substring(0, _roomInput.Length - 1); }
+            else if (i == 10) AppendDigit("0");
+            else net.Join(_roomInput);
+
             return true;
         }
 
         return false;
     }
 
+    void AppendDigit(string digit)
+    {
+        if (_roomInput.Length < 4) _roomInput += digit;
+    }
+
+    /// <summary>桌面端可以直接敲数字，手机端用上面的数字键盘。</summary>
     void HandleRoomInput()
     {
-        if (!_roomFocused) return;
+        if (GameManager.Instance == null || GameManager.Instance.PendingMode != GameMode.Duel) return;
 
         foreach (char c in Input.inputString)
         {
@@ -243,9 +282,9 @@ public class GameHUD : MonoBehaviour
             {
                 NetDuel.Instance?.Join(_roomInput);
             }
-            else if (char.IsLetterOrDigit(c) && _roomInput.Length < 12)
+            else if (c >= '0' && c <= '9')
             {
-                _roomInput += c;
+                AppendDigit(c.ToString());
             }
         }
     }
@@ -476,7 +515,7 @@ public class GameHUD : MonoBehaviour
             if (HandleNetClick(mouse)) return;
 
             // 3. 取消输入焦点（点空白先失焦，不误触开始）
-            if (_nameFocused || _roomFocused) { _nameFocused = false; _roomFocused = false; return; }
+            if (_nameFocused) { _nameFocused = false; return; }
 
             // 4. 玩法按钮
             if (HandleModeClick(mouse)) return;
@@ -493,7 +532,7 @@ public class GameHUD : MonoBehaviour
         }
 
         // 正在输入名字时，键盘不能触发开始
-        if (_nameFocused || _roomFocused) return;
+        if (_nameFocused) return;
 
         if (_cardClicked)
         {

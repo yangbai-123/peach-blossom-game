@@ -83,10 +83,15 @@ public class NetDuel : MonoBehaviour
     public void Join(string code)
     {
         code = (code ?? "").Trim();
-        if (code.Length < 4) { Status = "请输入房间号"; return; }
+
+        if (code.Length != 4 || !int.TryParse(code, out _))
+        {
+            Status = "请输入 4 位数字房号";
+            return;
+        }
 
         IsHost = false;
-        Status = "正在加入…";
+        Status = "正在加入 " + code + "…";
         Current = State.Joining;
 
 #if UNITY_WEBGL && !UNITY_EDITOR

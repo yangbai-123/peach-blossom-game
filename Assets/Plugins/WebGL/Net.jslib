@@ -8,29 +8,46 @@ mergeInto(LibraryManager.library, {
       return;
     }
 
-    var id = 'tao' + (1000 + Math.floor(Math.random() * 9000));
+    // 4 位数字房号，方便手机上手输
+    var attempt = 0;
 
-    try {
-      window._net = new window.Peer(id);
-    } catch (e) {
-      SendMessage('Net', 'OnNetError', '创建房间失败');
-      return;
+    function open() {
+      var id = String(1000 + Math.floor(Math.random() * 9000));
+
+      try {
+        window._net = new window.Peer(id);
+      } catch (e) {
+        SendMessage('Net', 'OnNetError', '创建房间失败');
+        return;
+      }
+
+      window._net.on('open', function (pid) {
+        SendMessage('Net', 'OnReady', pid);
+      });
+
+      window._net.on('error', function (e) {
+        var type = String(e && e.type ? e.type : e);
+
+        // 房号被占用就换一个重试
+        if (type === 'unavailable-id' && attempt < 5) {
+          attempt++;
+          try { window._net.destroy(); } catch (x) { }
+          open();
+          return;
+        }
+
+        SendMessage('Net', 'OnNetError', type);
+      });
+
+      window._net.on('connection', function (c) {
+        window._conn = c;
+        c.on('open', function () { SendMessage('Net', 'OnPeerJoined', ''); });
+        c.on('data', function (d) { SendMessage('Net', 'OnData', String(d)); });
+        c.on('close', function () { SendMessage('Net', 'OnPeerLeft', ''); });
+      });
     }
 
-    window._net.on('open', function (pid) {
-      SendMessage('Net', 'OnReady', pid);
-    });
-
-    window._net.on('connection', function (c) {
-      window._conn = c;
-      c.on('open', function () { SendMessage('Net', 'OnPeerJoined', ''); });
-      c.on('data', function (d) { SendMessage('Net', 'OnData', String(d)); });
-      c.on('close', function () { SendMessage('Net', 'OnPeerLeft', ''); });
-    });
-
-    window._net.on('error', function (e) {
-      SendMessage('Net', 'OnNetError', String(e && e.type ? e.type : e));
-    });
+    open();
   },
 
   DSH_NetJoin: function (ptr) {
