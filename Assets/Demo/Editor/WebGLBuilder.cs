@@ -36,6 +36,7 @@ public static class WebGLBuilder
         // MToon 是 VRM 模型用的着色器，运行时通过 Shader.Find 取，
         // 不放进去会被剥离，模型会变成洋红。
         EnsureShaderIncluded("VRM/MToon");
+        EnsureShaderIncluded("Skybox/Panoramic");
 
         Debug.Log($"[WebGL] decompressionFallback={PlayerSettings.WebGL.decompressionFallback}, " +
                   $"stripEngineCode={PlayerSettings.stripEngineCode}");

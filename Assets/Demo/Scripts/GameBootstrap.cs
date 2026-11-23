@@ -207,7 +207,9 @@ public class GameBootstrap : MonoBehaviour
         RenderSettings.fog = true;
         RenderSettings.fogMode = FogMode.Exponential;
         RenderSettings.fogDensity = 0.011f;
-        RenderSettings.fogColor = new Color(0.82f, 0.87f, 0.94f);
+        RenderSettings.fogColor = new Color(0.86f, 0.80f, 0.82f);
+
+        BuildSkyDome();
 
         // 三层远山：由近到远逐层变淡变高，配合雾形成纵深
         var layers = new[]
@@ -243,6 +245,54 @@ public class GameBootstrap : MonoBehaviour
                 }
             }
         }
+    }
+
+    /// <summary>
+    /// 渐变天穹：运行时生成一张竖直渐变贴图塞进天空盒，
+    /// 地平线暖白 → 中景淡紫 → 天顶深蓝，解决远处天空直接切开的问题。
+    /// </summary>
+    void BuildSkyDome()
+    {
+        var shader = Shader.Find("Skybox/Panoramic");
+
+        if (shader == null)
+        {
+            Debug.LogWarning("[sky] 找不到 Skybox/Panoramic，退回纯色背景");
+            return;
+        }
+
+        const int height = 128;
+        var tex = new Texture2D(4, height, TextureFormat.RGBA32, false)
+        {
+            wrapMode = TextureWrapMode.Clamp,
+            filterMode = FilterMode.Bilinear,
+        };
+
+        Color horizon = new Color(0.96f, 0.84f, 0.76f);
+        Color middle = new Color(0.68f, 0.68f, 0.82f);
+        Color zenith = new Color(0.30f, 0.38f, 0.60f);
+
+        for (int y = 0; y < height; y++)
+        {
+            float t = y / (float)(height - 1);
+            float v = 1f - t;                    // 贴图 v=0 是天顶
+
+            Color c = t < 0.55f
+                ? Color.Lerp(horizon, middle, t / 0.55f)
+                : Color.Lerp(middle, zenith, (t - 0.55f) / 0.45f);
+
+            for (int x = 0; x < 4; x++) tex.SetPixel(x, y, c);
+        }
+
+        tex.Apply();
+
+        var mat = new Material(shader);
+        mat.SetTexture("_MainTex", tex);
+        mat.SetFloat("_Mapping", 1f);      // 1 = Latitude/Longitude（等距柱状）
+        mat.SetFloat("_Exposure", 1f);
+
+        RenderSettings.skybox = mat;
+        RenderSettings.ambientSkyColor = Color.Lerp(horizon, zenith, 0.5f);
     }
 
     void BuildRingRoad()
@@ -350,12 +400,61 @@ public class GameBootstrap : MonoBehaviour
             float d = Random.Range(5.5f, 7f);
             float h = Random.Range(4.2f, 5.6f);
 
-            // 墙体
-            BoxRot("HouseWall", pos + Vector3.up * (h * 0.5f), new Vector3(w, h, d), wall, rot);
-
-            // 木构架：四角立柱 + 腰线
+            // 木构架尺寸
             float halfW = w * 0.5f;
             float halfD = d * 0.5f;
+
+            var yawRot = Quaternion.Euler(0f, yaw, 0f);
+
+            // 墙体：做成空心的四壁，门洞留空，玩家可以走进去
+            const float thickness = 0.3f;
+            float doorWidth = 1.7f;
+
+            Vector3 Local(float x, float y, float z) => pos + yawRot * new Vector3(x, y, z);
+
+            // 室内地面（比外面低一点点，踏进去有落差）
+            BoxRot("HouseFloor", Local(0f, 0.06f, 0f), new Vector3(w - thickness, 0.16f, d - thickness),
+                new Color(0.38f, 0.30f, 0.26f), rot, false);
+
+            // 后墙
+            BoxRot("HouseWall", Local(0f, h * 0.5f, halfD - thickness * 0.5f),
+                new Vector3(w, h, thickness), wall, rot);
+
+            // 左右墙
+            foreach (var side in new[] { -1f, 1f })
+            {
+                BoxRot("HouseWall", Local(side * (halfW - thickness * 0.5f), h * 0.5f, 0f),
+                    new Vector3(thickness, h, d), wall, rot);
+            }
+
+            // 前墙：中间留门洞，两侧各一段
+            float sideWidth = halfW - doorWidth * 0.5f - thickness;
+            foreach (var side in new[] { -1f, 1f })
+            {
+                float cx = side * (doorWidth * 0.5f + sideWidth * 0.5f);
+                BoxRot("HouseWall", Local(cx, h * 0.5f, -halfD + thickness * 0.5f),
+                    new Vector3(sideWidth, h, thickness), wall, rot);
+            }
+
+            // 门楣（门洞上方补一段墙）
+            float lintelHeight = h - 2.5f;
+            if (lintelHeight > 0.1f)
+            {
+                BoxRot("HouseWall", Local(0f, 2.5f + lintelHeight * 0.5f, -halfD + thickness * 0.5f),
+                    new Vector3(doorWidth, lintelHeight, thickness), wall, rot);
+            }
+
+            // 室内一盏小灯，走进去不至于全黑
+            var innerGlow = new GameObject("InnerLight");
+            innerGlow.transform.SetParent(_root);
+            innerGlow.transform.position = Local(0f, 2.2f, 0f);
+
+            var innerLight = innerGlow.AddComponent<Light>();
+            innerLight.type = LightType.Point;
+            innerLight.color = new Color(1f, 0.78f, 0.5f);
+            innerLight.range = Mathf.Max(w, d) * 0.9f;
+            innerLight.intensity = 1.3f;
+            innerLight.shadows = LightShadows.None;
 
             foreach (var sx in new[] { -1f, 1f })
             {
@@ -373,8 +472,6 @@ public class GameBootstrap : MonoBehaviour
             float halfWidth = w * 0.5f;
             float slope = Mathf.Atan2(roofHeight, halfWidth) * Mathf.Rad2Deg;
             float slabLen = Mathf.Sqrt(halfWidth * halfWidth + roofHeight * roofHeight);
-
-            var yawRot = Quaternion.Euler(0f, yaw, 0f);
 
             foreach (var side in new[] { -1f, 1f })
             {
@@ -409,12 +506,13 @@ public class GameBootstrap : MonoBehaviour
             }
 
             // 门：门框 + 门板 + 门楣
-            Vector3 door = pos + yawRot * new Vector3(0f, 1.2f, -halfD - 0.05f);
-            BoxRot("DoorFrame", door, new Vector3(1.55f, 2.45f, 0.12f), beam, rot, false);
-            BoxRot("DoorPanel", door + yawRot * new Vector3(0f, 0f, -0.08f),
-                new Vector3(1.26f, 2.2f, 0.08f), new Color(0.36f, 0.24f, 0.18f), rot, false);
-            BoxRot("DoorLintel", door + yawRot * new Vector3(0f, 1.32f, -0.1f),
-                new Vector3(1.9f, 0.18f, 0.3f), beam, rot, false);
+            // 门框 + 半开的门板（门洞是空的，玩家能走进去）
+            var doorRot = new Vector3(0f, yaw + 32f, 0f);
+            Vector3 door = pos + yawRot * new Vector3(-doorWidth * 0.5f, 1.2f, -halfD);
+            BoxRot("DoorPanel", door, new Vector3(1.15f, 2.3f, 0.08f),
+                new Color(0.36f, 0.24f, 0.18f), doorRot, false);
+            BoxRot("DoorLintel", pos + yawRot * new Vector3(0f, 2.55f, -halfD),
+                new Vector3(doorWidth + 0.5f, 0.2f, 0.36f), beam, rot, false);
 
             // 檐下阴影：靠顶的墙面压暗，模拟挑檐遮挡
             BoxRot("EaveShadow", pos + yawRot * new Vector3(0f, h - 0.38f, -halfD - 0.03f),
@@ -1055,7 +1153,8 @@ public class GameBootstrap : MonoBehaviour
 
         cam.fieldOfView = 55f;
         cam.farClipPlane = 400f;
-        cam.backgroundColor = new Color(0.86f, 0.9f, 0.96f);
+        cam.backgroundColor = new Color(0.86f, 0.88f, 0.95f);
+        cam.clearFlags = RenderSettings.skybox != null ? CameraClearFlags.Skybox : CameraClearFlags.SolidColor;
 
         var follow = cam.GetComponent<ThirdPersonCamera>();
         if (follow == null) follow = cam.gameObject.AddComponent<ThirdPersonCamera>();
@@ -1119,9 +1218,15 @@ public class GameBootstrap : MonoBehaviour
         lightGo.transform.SetParent(_root);
         var light = lightGo.AddComponent<Light>();
         light.type = LightType.Directional;
-        light.intensity = 1.15f;
-        light.color = new Color(1f, 0.97f, 0.92f);
-        lightGo.transform.rotation = Quaternion.Euler(45f, -35f, 0f);
+        light.intensity = 1.42f;
+        light.color = new Color(1f, 0.88f, 0.72f);      // 低角度暖光
+        lightGo.transform.rotation = Quaternion.Euler(28f, -52f, 0f);   // 黄昏斜射光
+        light.shadows = LightShadows.Soft;
+        light.shadowStrength = 0.62f;
+
+        // 环境光：偏冷的暮色，和暖色阳光形成冷暖对比
+        RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
+        RenderSettings.ambientLight = new Color(0.56f, 0.56f, 0.62f);
     }
 
     // ------------------------------------------------------------ 图元工具
