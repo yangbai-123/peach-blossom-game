@@ -84,10 +84,32 @@ public static class PropImporter
                 var mat = materials[i];
                 if (mat == null) continue;
 
-                if (mat.mainTexture != null && !AssetDatabase.Contains(mat.mainTexture))
+                // 贴图要落成 PNG 再导入，直接 CreateAsset 存 Texture2D 会丢内容（模型变白）
+                var tex2d = mat.mainTexture as Texture2D;
+                if (tex2d != null)
                 {
-                    var texPath = $"{sharedDir}/{name}_tex_{index++}.asset";
-                    AssetDatabase.CreateAsset(mat.mainTexture, texPath);
+                    var pngPath = $"{sharedDir}/{name}_tex_{index++}.png";
+
+                    try
+                    {
+                        File.WriteAllBytes(pngPath, tex2d.EncodeToPNG());
+                        AssetDatabase.ImportAsset(pngPath, ImportAssetOptions.ForceUpdate);
+
+                        var importer = AssetImporter.GetAtPath(pngPath) as TextureImporter;
+                        if (importer != null)
+                        {
+                            importer.textureType = TextureImporterType.Default;
+                            importer.mipmapEnabled = true;
+                            importer.SaveAndReimport();
+                        }
+
+                        var imported = AssetDatabase.LoadAssetAtPath<Texture2D>(pngPath);
+                        if (imported != null) mat.mainTexture = imported;
+                    }
+                    catch (System.Exception e)
+                    {
+                        Debug.LogWarning($"[prop] 贴图保存失败 {name}: {e.Message}");
+                    }
                 }
 
                 if (!AssetDatabase.Contains(mat))

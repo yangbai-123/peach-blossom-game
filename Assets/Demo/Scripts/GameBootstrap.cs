@@ -391,7 +391,7 @@ public class GameBootstrap : MonoBehaviour
     {
         // 目前模型能加载进内存但画面里不显示（材质/变换还在查），
         // 先关掉替换，避免删掉原来的云和浮空岛造成回退。
-        const bool ReplaceProcedural = false;
+        const bool ReplaceProcedural = true;
 
         if (!ReplaceProcedural) return;
 
@@ -420,13 +420,15 @@ public class GameBootstrap : MonoBehaviour
 
             foreach (var island in _islandSpots)
             {
-                var go = PropLoader.Spawn("island", island + Vector3.down * 0.4f, 9f, Random.Range(0f, 360f));
+                var go = PropLoader.Spawn("island", island + Vector3.down * 0.4f, 1.8f, Random.Range(0f, 360f));
                 if (go != null) go.name = "IslandGrass";
             }
         }
 
         if (PropLoader.Has("grass"))
         {
+            // 同一帧内创建的碰撞体还没注册进物理世界，先同步一次再射线
+            Physics.SyncTransforms();
             for (int i = 0; i < 60; i++)
             {
                 float x = Random.Range(-32f, 32f);
