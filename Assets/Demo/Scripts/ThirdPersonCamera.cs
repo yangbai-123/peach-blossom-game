@@ -20,7 +20,13 @@ public class ThirdPersonCamera : MonoBehaviour
 
     [Header("距离与角度")]
     public float distance = 4.5f;
-    public float minDistance = 1.8f;
+    public float minDistance = 2.4f;
+
+    [Tooltip("被遮挡时的最小距离")]
+    public float minCollisionDistance = 2.2f;
+
+    [Tooltip("被遮挡时镜头抬高的最大高度")]
+    public float liftHeight = 2.4f;
     public float maxDistance = 9f;
     public float zoomStep = 0.6f;
     public float mouseSensitivity = 3f;
@@ -145,22 +151,27 @@ public class ThirdPersonCamera : MonoBehaviour
 
         SetBodyVisible(true);
 
-        Vector3 pivot = target.position + pivotOffset;
-        Vector3 desired = pivot - rotation * Vector3.forward * distance;
+        Vector3 basePivot = target.position + pivotOffset;
+        Vector3 pullDir = -(rotation * Vector3.forward);
 
-        // 遮挡回避：镜头与视点之间有东西就把镜头拉近。
-        // 用 SphereCast 而不是 Linecast —— 射线起点在角色胶囊内部，
-        // Linecast 会立刻命中自己，导致镜头被贴到脸上。
-        Vector3 pullDir = (desired - pivot).normalized;
         float allowed = distance;
+        float lift = 0f;
 
-        if (Physics.SphereCast(pivot, 0.28f, pullDir, out RaycastHit pullHit, distance, ~0, QueryTriggerInteraction.Ignore))
+        // 遮挡回避：被挡住时不是一味往脸上拉，而是抬高镜头从上方越过去。
+        // 用 SphereCast 而不是 Linecast —— 射线起点在角色胶囊内部，
+        // Linecast 会立刻命中自己。
+        if (Physics.SphereCast(basePivot, 0.3f, pullDir, out RaycastHit pullHit, distance, ~0, QueryTriggerInteraction.Ignore)
+            && !ShouldIgnoreHit(pullHit.collider))
         {
-            if (pullHit.collider != null && !IsSelfCollider(pullHit.collider))
-                allowed = Mathf.Clamp(pullHit.distance - 0.15f, 1.2f, distance);
+            allowed = Mathf.Clamp(pullHit.distance - 0.2f, minCollisionDistance, distance);
+
+            // 挡得越狠，抬得越高
+            float blocked = 1f - Mathf.Clamp01(allowed / Mathf.Max(0.01f, distance));
+            lift = Mathf.Lerp(0f, liftHeight, blocked);
         }
 
-        desired = pivot + pullDir * allowed;
+        Vector3 pivot = basePivot + Vector3.up * lift;
+        Vector3 desired = pivot + pullDir * allowed;
 
         float t = 1f - Mathf.Exp(-positionSmooth * Time.deltaTime);
         transform.position = Vector3.Lerp(transform.position, desired, t);
@@ -172,6 +183,26 @@ public class ThirdPersonCamera : MonoBehaviour
     {
         if (target == null) return false;
         return collider.transform.root == target.root;
+    }
+
+    // 植被、道具、云、花瓣不该把镜头推走，只让"实心"的墙和地形参与遮挡
+    static readonly string[] IgnoredPrefixes =
+    {
+        "Cherry", "Bamboo", "Prop_", "Cloud", "FarPeak", "Grass", "Petal",
+        "Loot", "Lantern", "Lamp", "Seam", "RoadEdge", "WetPatch", "LightPool",
+    };
+
+    bool ShouldIgnoreHit(Collider collider)
+    {
+        if (collider == null) return true;
+        if (IsSelfCollider(collider)) return true;
+        if (collider.isTrigger) return true;
+
+        string name = collider.gameObject.name;
+        foreach (var prefix in IgnoredPrefixes)
+            if (name.StartsWith(prefix)) return true;
+
+        return false;
     }
 
     public void ToggleFirstPerson()
