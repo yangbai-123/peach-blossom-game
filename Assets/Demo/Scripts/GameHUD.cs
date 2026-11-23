@@ -105,6 +105,8 @@ public class GameHUD : MonoBehaviour
         _body.normal.textColor = c;
 
         DrawCharacterCards(w, h);
+        DrawAccountPanel(w, h);
+        DrawLeaderboard(w, h);
 
         var hintRect = new Rect(16f, h - 52f * _scale, 780f, 42f * _scale);
         DrawRect(hintRect, new Color(0f, 0f, 0f, 0.38f));
@@ -136,6 +138,181 @@ public class GameHUD : MonoBehaviour
         return new Rect(x, y0 + index * (cardH + gap), cardW, cardH);
     }
 
+    // ------------------------------------------------------------- 账户与排行榜
+
+    string _inputName = "";
+    string _authMessage = "";
+    bool _nameFocused;
+
+    Rect NameFieldRect()
+    {
+        float w = Screen.width, h = Screen.height;
+        return new Rect(w * 0.055f, h * 0.315f, w * 0.16f, h * 0.056f);
+    }
+
+    Rect EnterBtn()
+    {
+        var f = NameFieldRect();
+        return new Rect(f.xMax + 8f * _scale, f.y, Screen.width * 0.062f, f.height);
+    }
+
+    Rect RandomBtn()
+    {
+        var e = EnterBtn();
+        return new Rect(e.xMax + 6f * _scale, e.y, Screen.width * 0.058f, e.height);
+    }
+
+    Rect SwitchBtn()
+    {
+        float w = Screen.width, h = Screen.height;
+        return new Rect(w * 0.055f + w * 0.13f, h * 0.30f, w * 0.06f, 34f * _scale);
+    }
+
+    Rect ChipRect(int index)
+    {
+        float w = Screen.width, h = Screen.height;
+        return new Rect(w * 0.055f + index * (w * 0.062f + 6f * _scale), h * 0.383f, w * 0.062f, 30f * _scale);
+    }
+
+    void DrawButtonRow(Rect r, string text, bool accent)
+    {
+        DrawRect(r, accent
+            ? new Color(0.18f, 0.30f, 0.48f, 0.92f)
+            : new Color(0.08f, 0.12f, 0.19f, 0.85f));
+
+        GUI.Label(r, text, _small);
+    }
+
+    void DrawAccountPanel(float w, float h)
+    {
+        if (UserProfile.HasUser)
+        {
+            GUI.Label(new Rect(w * 0.055f, h * 0.302f, w * 0.24f, 34f * _scale),
+                "玩家：" + UserProfile.Current, _body);
+            DrawButtonRow(SwitchBtn(), "切换", false);
+            return;
+        }
+
+        GUI.Label(new Rect(w * 0.055f, h * 0.285f, w * 0.34f, 28f * _scale), "起个名字（会记住）", _small);
+
+        var field = NameFieldRect();
+        DrawRect(field, new Color(0.05f, 0.08f, 0.14f, 0.9f));
+
+        if (_nameFocused && Mathf.Repeat(Time.unscaledTime, 1f) < 0.55f)
+            DrawRect(new Rect(field.xMax - 3f, field.y + 6f, 2f, field.height - 12f), new Color(1f, 1f, 1f, 0.8f));
+
+        GUI.Label(new Rect(field.x + 10f * _scale, field.y + 4f, field.width, field.height),
+            string.IsNullOrEmpty(_inputName) ? "点击输入名字" : _inputName, _body);
+
+        DrawButtonRow(EnterBtn(), "进入", true);
+        DrawButtonRow(RandomBtn(), "随机", false);
+
+        if (!string.IsNullOrEmpty(_authMessage))
+            GUI.Label(new Rect(w * 0.055f, h * 0.383f, w * 0.34f, 26f * _scale), _authMessage, _small);
+
+        var names = UserProfile.SavedNames();
+        for (int i = 0; i < names.Count && i < 5; i++)
+        {
+            var chip = ChipRect(i);
+            DrawButtonRow(chip, names[i], false);
+        }
+    }
+
+    void DrawLeaderboard(float w, float h)
+    {
+        float x = w * 0.545f;
+        float y = h * 0.455f;
+        float cw = w * 0.36f;
+
+        GUI.Label(new Rect(x, y, cw, 34f * _scale), "最快通关", _body);
+
+        var rows = UserProfile.Leaderboard(8);
+
+        if (rows.Count == 0)
+        {
+            GUI.Label(new Rect(x, y + 38f * _scale, cw, 30f * _scale), "还没有通关记录", _small);
+            return;
+        }
+
+        for (int i = 0; i < rows.Count; i++)
+        {
+            var row = rows[i];
+            var rect = new Rect(x, y + (38f + i * 32f) * _scale, cw, 30f * _scale);
+
+            if (row.name == UserProfile.Current)
+                DrawRect(rect, new Color(0.18f, 0.30f, 0.48f, 0.55f));
+
+            GUI.Label(rect, $"{i + 1}. {row.name}", _small);
+            GUI.Label(new Rect(rect.x + rect.width * 0.62f, rect.y, rect.width * 0.38f, rect.height),
+                UserProfile.FormatTime(row.time), _small);
+        }
+    }
+
+    /// <summary>处理账户区的点击，返回 true 表示这次点击被消耗。</summary>
+    bool HandleAccountClick(Vector2 mouse)
+    {
+        if (UserProfile.HasUser)
+        {
+            if (SwitchBtn().Contains(mouse)) { UserProfile.Logout(); return true; }
+            return false;
+        }
+
+        if (NameFieldRect().Contains(mouse)) { _nameFocused = true; return true; }
+        if (EnterBtn().Contains(mouse)) { SubmitName(_inputName); return true; }
+
+        if (RandomBtn().Contains(mouse))
+        {
+            string[] pool = { "青衫客", "听雨", "拾花人", "负剑", "山月", "拾光" };
+            _inputName = pool[Random.Range(0, pool.Length)] + Random.Range(10, 99);
+            SubmitName(_inputName);
+            return true;
+        }
+
+        var names = UserProfile.SavedNames();
+        for (int i = 0; i < names.Count && i < 5; i++)
+        {
+            if (ChipRect(i).Contains(mouse)) { SubmitName(names[i]); return true; }
+        }
+
+        return false;
+    }
+
+    void SubmitName(string name)
+    {
+        if (UserProfile.Enter(name, out string error))
+        {
+            _authMessage = "";
+            _inputName = UserProfile.Current;
+            _nameFocused = false;
+        }
+        else
+        {
+            _authMessage = error;
+        }
+    }
+
+    /// <summary>自己处理文字输入：WebGL 的 OnGUI 收不到键盘焦点事件。</summary>
+    void HandleNameInput()
+    {
+        if (!_nameFocused) return;
+
+        foreach (char c in Input.inputString)
+        {
+            if (c == '\b')
+            {
+                if (_inputName.Length > 0) _inputName = _inputName.Substring(0, _inputName.Length - 1);
+            }
+            else if (c == '\n' || c == '\r')
+            {
+                SubmitName(_inputName);
+            }
+            else if (!char.IsControl(c) && _inputName.Length < 12)
+            {
+                _inputName += c;
+            }
+        }
+    }
+
     void SelectCharacter(int index)
     {
         if (CharacterCatalog.SelectedIndex == index) return;
@@ -155,6 +332,9 @@ public class GameHUD : MonoBehaviour
 
         if (GameManager.Instance.State != GameState.Title) return;
 
+        // 名字输入（自己处理，OnGUI 在 WebGL 收不到键盘事件）
+        HandleNameInput();
+
         // WebGL 的 OnGUI 收不到鼠标事件，这里直接用 Input 做命中判定
         if (Input.GetMouseButtonDown(0))
         {
@@ -162,6 +342,13 @@ public class GameHUD : MonoBehaviour
                 ? MobileOrientation.FromRotatedInput(Input.mousePosition)
                 : new Vector2(Input.mousePosition.x, Screen.height - Input.mousePosition.y);
 
+            // 1. 账户区
+            if (HandleAccountClick(mouse)) return;
+
+            // 2. 取消输入焦点（点空白先失焦，不误触开始）
+            if (_nameFocused) { _nameFocused = false; return; }
+
+            // 3. 角色卡
             for (int i = 0; i < CharacterCatalog.Entries.Length; i++)
             {
                 if (!CardRect(i).Contains(mouse)) continue;
@@ -171,6 +358,9 @@ public class GameHUD : MonoBehaviour
                 return;
             }
         }
+
+        // 正在输入名字时，键盘不能触发开始
+        if (_nameFocused) return;
 
         if (_cardClicked)
         {

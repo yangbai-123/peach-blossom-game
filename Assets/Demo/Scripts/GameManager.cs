@@ -102,6 +102,9 @@ public class GameManager : MonoBehaviour
     {
         if (State != GameState.Playing || !ShrineUnlocked) return;
         State = GameState.Ending;
+
+        // 有登录用户就记录成绩
+        UserProfile.SubmitTime(PlayTime);
         PlayerController.SetCursorLocked(false);
         GameEnded?.Invoke();
     }
