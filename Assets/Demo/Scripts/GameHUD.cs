@@ -695,7 +695,7 @@ public class GameHUD : MonoBehaviour
         // 撤离点状态
         string zone = ex.ZoneActive
             ? "撤离点已开放 · 前往山顶石台"
-            : "撤离点将在开局 45 秒后开放";
+            : $"撤离点将在开局 {Mathf.RoundToInt(ex.ZoneActivateAt / 60f)} 分钟后开放";
 
         GUI.Label(new Rect(w * 0.5f - w * 0.2f, h * 0.105f, w * 0.4f, 28f * _scale), zone, _small);
 

@@ -10,10 +10,13 @@ public class ExtractionMode : MonoBehaviour
     public static ExtractionMode Instance { get; private set; }
 
     [Header("规则")]
-    public float timeLimit = 180f;
-    public float zoneActivateAt = 45f;
+    public float timeLimit = 900f;
+    public float zoneActivateAt = 180f;
     public float extractHoldTime = 6f;
-    public int lootCount = 9;
+
+    /// <summary>撤离点开放时间（秒，开局后计时），HUD 用它显示文案。</summary>
+    public float ZoneActivateAt => zoneActivateAt;
+    public int lootCount = 14;
 
     [Header("撤离点")]
     public Vector3 zoneCenter = new Vector3(0f, 5.4f, 32f);
