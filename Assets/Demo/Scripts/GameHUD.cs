@@ -171,6 +171,83 @@ public class GameHUD : MonoBehaviour
                 GUI.Label(new Rect(rect.x, rect.yMax + 2f, w * 0.34f, 24f * _scale),
                     Modes[i].hint, _small);
         }
+
+        if (GameManager.Instance != null && GameManager.Instance.PendingMode == GameMode.Duel)
+            DrawNetPanel(w, h);
+    }
+
+    // ------------------------------------------------------------- 联机面板
+
+    string _roomInput = "";
+    bool _roomFocused;
+
+    Rect NetHostBtn() => new Rect(Screen.width * 0.545f, Screen.height * 0.735f, Screen.width * 0.10f, Screen.height * 0.05f);
+    Rect NetRoomField() => new Rect(Screen.width * 0.655f, Screen.height * 0.735f, Screen.width * 0.10f, Screen.height * 0.05f);
+    Rect NetJoinBtn() => new Rect(Screen.width * 0.765f, Screen.height * 0.735f, Screen.width * 0.08f, Screen.height * 0.05f);
+
+    void DrawNetPanel(float w, float h)
+    {
+        var net = NetDuel.Instance;
+        if (net == null) return;
+
+        GUI.Label(new Rect(w * 0.545f, h * 0.695f, w * 0.36f, 28f * _scale), "联机对枪（房间号）", _body);
+
+        DrawButtonRow(NetHostBtn(), "创建房间", net.Current == NetDuel.State.Hosting);
+
+        var field = NetRoomField();
+        DrawRect(field, new Color(0.05f, 0.08f, 0.14f, 0.9f));
+        GUI.Label(new Rect(field.x + 8f * _scale, field.y + 4f * _scale, field.width, field.height),
+            string.IsNullOrEmpty(_roomInput) ? "房号" : _roomInput, _small);
+
+        DrawButtonRow(NetJoinBtn(), "加入", net.Current == NetDuel.State.Joining);
+
+        if (!string.IsNullOrEmpty(net.Status))
+            GUI.Label(new Rect(w * 0.545f, h * 0.79f, w * 0.40f, 28f * _scale), net.Status, _small);
+
+        string hint = net.Current == NetDuel.State.Playing
+            ? "对局进行中 · 把对手打到 0 血"
+            : "创建后把房间号发给朋友";
+        GUI.Label(new Rect(w * 0.545f, h * 0.82f, w * 0.40f, 26f * _scale), hint, _small);
+    }
+
+    bool HandleNetClick(Vector2 mouse)
+    {
+        var net = NetDuel.Instance;
+        if (net == null) return false;
+        if (GameManager.Instance == null || GameManager.Instance.PendingMode != GameMode.Duel) return false;
+
+        if (NetHostBtn().Contains(mouse)) { _roomFocused = false; net.Host(); return true; }
+        if (NetRoomField().Contains(mouse)) { _roomFocused = true; return true; }
+
+        if (NetJoinBtn().Contains(mouse))
+        {
+            _roomFocused = false;
+            net.Join(_roomInput);
+            return true;
+        }
+
+        return false;
+    }
+
+    void HandleRoomInput()
+    {
+        if (!_roomFocused) return;
+
+        foreach (char c in Input.inputString)
+        {
+            if (c == '\b')
+            {
+                if (_roomInput.Length > 0) _roomInput = _roomInput.Substring(0, _roomInput.Length - 1);
+            }
+            else if (c == '\n' || c == '\r')
+            {
+                NetDuel.Instance?.Join(_roomInput);
+            }
+            else if (char.IsLetterOrDigit(c) && _roomInput.Length < 12)
+            {
+                _roomInput += c;
+            }
+        }
     }
 
     /// <summary>标题界面点玩法按钮，返回 true 表示已消耗。</summary>
@@ -383,6 +460,7 @@ public class GameHUD : MonoBehaviour
 
         // 名字输入（自己处理，OnGUI 在 WebGL 收不到键盘事件）
         HandleNameInput();
+        HandleRoomInput();
 
         // WebGL 的 OnGUI 收不到鼠标事件，这里直接用 Input 做命中判定
         if (Input.GetMouseButtonDown(0))
@@ -394,13 +472,16 @@ public class GameHUD : MonoBehaviour
             // 1. 账户区
             if (HandleAccountClick(mouse)) return;
 
-            // 2. 取消输入焦点（点空白先失焦，不误触开始）
-            if (_nameFocused) { _nameFocused = false; return; }
+            // 2. 联机面板
+            if (HandleNetClick(mouse)) return;
 
-            // 3. 玩法按钮
+            // 3. 取消输入焦点（点空白先失焦，不误触开始）
+            if (_nameFocused || _roomFocused) { _nameFocused = false; _roomFocused = false; return; }
+
+            // 4. 玩法按钮
             if (HandleModeClick(mouse)) return;
 
-            // 4. 角色卡
+            // 5. 角色卡
             for (int i = 0; i < CharacterCatalog.Entries.Length; i++)
             {
                 if (!CardRect(i).Contains(mouse)) continue;
@@ -412,7 +493,7 @@ public class GameHUD : MonoBehaviour
         }
 
         // 正在输入名字时，键盘不能触发开始
-        if (_nameFocused) return;
+        if (_nameFocused || _roomFocused) return;
 
         if (_cardClicked)
         {
@@ -589,6 +670,12 @@ public class GameHUD : MonoBehaviour
             GUI.Label(tr, toast, _body);
         }
 
+        if (gm.Mode == GameMode.Duel)
+        {
+            DrawDuelInfo(w, h);
+            return;
+        }
+
         if (gm.Mode != GameMode.Extraction) return;
 
         var ex = ExtractionMode.Instance;
@@ -635,6 +722,39 @@ public class GameHUD : MonoBehaviour
             if (buffs.SpeedLeft > 0f)
                 GUI.Label(new Rect(x, y + 26f * _scale, 200f * _scale, 26f * _scale), $"疾行 {buffs.SpeedLeft:0}s", _small);
         }
+    }
+
+    /// <summary>联机对枪：双方血量。</summary>
+    void DrawDuelInfo(float w, float h)
+    {
+        var net = NetDuel.Instance;
+        if (net == null) return;
+
+        float barW = w * 0.26f;
+        float barH = 16f * _scale;
+
+        // 我方
+        var mine = new Rect(w * 0.5f - barW - 14f * _scale, h * 0.03f, barW, barH);
+        DrawRect(mine, new Color(0f, 0f, 0f, 0.45f));
+        if (net.LocalHealth != null)
+        {
+            float p = Mathf.Clamp01(net.LocalHealth.Current / net.LocalHealth.Max);
+            DrawRect(new Rect(mine.x, mine.y, mine.width * p, mine.height), new Color(0.5f, 0.85f, 0.6f, 0.95f));
+        }
+        GUI.Label(new Rect(mine.x, mine.y - 26f * _scale, mine.width, 24f * _scale), "我方", _small);
+
+        // 对手
+        var theirs = new Rect(w * 0.5f + 14f * _scale, h * 0.03f, barW, barH);
+        DrawRect(theirs, new Color(0f, 0f, 0f, 0.45f));
+        if (net.RemoteHealth != null)
+        {
+            float p = Mathf.Clamp01(net.RemoteHealth.Current / net.RemoteHealth.Max);
+            DrawRect(new Rect(theirs.x, theirs.y, theirs.width * p, theirs.height), new Color(0.95f, 0.5f, 0.55f, 0.95f));
+        }
+        GUI.Label(new Rect(theirs.x, theirs.y - 26f * _scale, theirs.width, 24f * _scale), "对手", _small);
+
+        if (!string.IsNullOrEmpty(net.Status))
+            GUI.Label(new Rect(w * 0.5f - w * 0.2f, h * 0.075f, w * 0.4f, 26f * _scale), net.Status, _small);
     }
 
     // ------------------------------------------------------------- 工具

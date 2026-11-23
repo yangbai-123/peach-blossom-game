@@ -108,6 +108,14 @@ public static class WebGLBuilder
         var html = System.IO.File.ReadAllText(indexPath);
         if (html.Contains("dsh-fullscreen")) return;
 
+        // 联机用的 PeerJS 打到构建目录，避免依赖外网 CDN
+        var peerSrc = System.IO.Path.Combine("Assets/Plugins/WebGL", "peerjs.min.js");
+        if (System.IO.File.Exists(peerSrc))
+        {
+            System.IO.File.Copy(peerSrc, System.IO.Path.Combine(OutputDir, "peerjs.min.js"), true);
+            Debug.Log("[WebGL] 已复制 peerjs.min.js");
+        }
+
         const string patch = @"
 <style id=""dsh-fullscreen"">
   html, body { width: 100%; height: 100%; margin: 0; padding: 0; overflow: hidden; background: #0d1117; }
@@ -116,6 +124,7 @@ public static class WebGLBuilder
   #unity-footer { display: none !important; }
 </style>
 <meta name=""viewport"" content=""width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"">
+<script src=""peerjs.min.js""></script>
 </head>";
 
         html = html.Replace("</head>", patch);

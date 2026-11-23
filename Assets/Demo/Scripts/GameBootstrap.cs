@@ -383,6 +383,11 @@ public class GameBootstrap : MonoBehaviour
         var extraction = new GameObject("ExtractionMode");
         extraction.transform.SetParent(_root);
         extraction.AddComponent<ExtractionMode>();
+
+        // 联机对枪
+        var net = new GameObject("Net");
+        net.transform.SetParent(_root);
+        net.AddComponent<NetDuel>();
     }
 
     /// <summary>顶部滚动提示（拾取物资等）。</summary>

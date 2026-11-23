@@ -168,6 +168,10 @@ public class PlayerCombat : MonoBehaviour
             float dmg = comboDamage[Mathf.Clamp(_combo, 0, comboDamage.Length - 1)] * damageMultiplier;
             if (!health.TakeDamage(dmg, transform.position)) continue;
 
+            // 打中远端玩家：把伤害报给对手（由本地判定，简单可信）
+            if (health.GetComponent<RemotePlayer>() != null)
+                NetDuel.Instance?.ReportHit(dmg);
+
             // 便于在浏览器控制台验证战斗链路（Unity WebGL 会把 Debug.Log 转到 console）
             Debug.Log($"[combat] hit {health.name} dmg={dmg} combo={_combo}");
 

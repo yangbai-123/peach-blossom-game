@@ -46,6 +46,13 @@ public class Health : MonoBehaviour
         Changed?.Invoke(Current, maxHealth);
     }
 
+    /// <summary>直接设置当前血量（联机同步远端血量用）。</summary>
+    public void SetCurrent(float value)
+    {
+        Current = Mathf.Clamp(value, 0f, maxHealth);
+        Changed?.Invoke(Current, maxHealth);
+    }
+
     /// <summary>
     /// 扣血。返回是否真的生效（无敌中、已死亡会返回 false）。
     /// </summary>
