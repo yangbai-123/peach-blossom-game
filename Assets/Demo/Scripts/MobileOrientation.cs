@@ -44,6 +44,28 @@ public static class MobileOrientation
         }
     }
 
+    /// <summary>
+    /// 页面是否处于"竖屏 + CSS 旋转"状态。
+    /// 此时画布是横屏比例，但浏览器上报的触摸坐标是竖屏空间的，需要还原。
+    /// </summary>
+    public static bool IsRotated => MobileInput.Enabled && IsPortrait;
+
+    /// <summary>
+    /// 把 Unity 拿到的触摸坐标（旋转后已错位）还原成横屏画布坐标。
+    /// </summary>
+    public static Vector2 FromRotatedInput(Vector2 screenPos)
+    {
+        float w = Screen.width;
+        float h = Screen.height;
+
+        // 画布被 CSS 反向旋转 90°，浏览器仍按竖屏矩形映射，
+        // 这里还原成横屏画布坐标（左上原点）
+        float localX = Mathf.Clamp01(screenPos.y / h) * w;
+        float localY = Mathf.Clamp01(screenPos.x / w) * h;
+
+        return new Vector2(localX, localY);
+    }
+
     /// <summary>请求横屏（只在移动端、且只请求一次）。</summary>
     public static void RequestLandscape()
     {

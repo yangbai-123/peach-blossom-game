@@ -140,16 +140,28 @@ public class TouchControls : MonoBehaviour
         {
             Touch t = Input.GetTouch(i);
 
-            Vector2 screenPos = ToScreen(t.position);
+            Vector2 pos;
+            Vector2 delta;
 
-            // Touch.position 是左下原点，IMGUI 是左上原点
-            Vector2 pos = new Vector2(screenPos.x, Screen.height - screenPos.y);
+            if (MobileOrientation.IsRotated)
+            {
+                // 画布被 CSS 转了 90°，触摸坐标要还原回横屏画布空间
+                pos = MobileOrientation.FromRotatedInput(t.position);
+                Vector2 prev = MobileOrientation.FromRotatedInput(t.position - t.deltaPosition);
+                delta = pos - prev;
+            }
+            else
+            {
+                Vector2 screenPos = ToScreen(t.position);
+                pos = new Vector2(screenPos.x, Screen.height - screenPos.y);
 
-            Vector2 screenDelta = ToScreen(t.deltaPosition);
+                Vector2 screenDelta = ToScreen(t.deltaPosition);
+                delta = new Vector2(screenDelta.x, -screenDelta.y);
+            }
 
             if (t.phase == TouchPhase.Began) OnPress(pos, t.fingerId);
             else if (t.phase == TouchPhase.Moved || t.phase == TouchPhase.Stationary)
-                OnDrag(pos, t.fingerId, new Vector2(screenDelta.x, -screenDelta.y));
+                OnDrag(pos, t.fingerId, delta);
             else if (t.phase == TouchPhase.Ended || t.phase == TouchPhase.Canceled)
                 OnRelease(t.fingerId);
         }

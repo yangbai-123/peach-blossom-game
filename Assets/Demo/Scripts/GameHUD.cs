@@ -72,6 +72,9 @@ public class GameHUD : MonoBehaviour
     {
         if (!MobileInput.Enabled || !MobileOrientation.IsPortrait) return;
 
+        // 只在标题界面提示，游戏中不挡视野
+        if (GameManager.Instance != null && GameManager.Instance.State != GameState.Title) return;
+
         float w = Screen.width;
         float h = Screen.height;
 
@@ -167,7 +170,9 @@ public class GameHUD : MonoBehaviour
         // WebGL 的 OnGUI 收不到鼠标事件，这里直接用 Input 做命中判定
         if (Input.GetMouseButtonDown(0))
         {
-            var mouse = new Vector2(Input.mousePosition.x, Screen.height - Input.mousePosition.y);
+            var mouse = MobileOrientation.IsRotated
+                ? MobileOrientation.FromRotatedInput(Input.mousePosition)
+                : new Vector2(Input.mousePosition.x, Screen.height - Input.mousePosition.y);
 
             for (int i = 0; i < CharacterCatalog.Entries.Length; i++)
             {
