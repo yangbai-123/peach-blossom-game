@@ -67,8 +67,8 @@ public class VrmCharacterLoader : MonoBehaviour
             root.name = "CharacterModel";
             root.transform.SetParent(transform, false);
             root.transform.localPosition = Vector3.zero;
-            // VRM 0.x 模型默认朝 -Z，转身 180° 让它朝向玩家前进方向
-            root.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
+            // 模型自身朝向已与玩家前进方向一致，不要再额外旋转
+            root.transform.localRotation = Quaternion.identity;
 
             // 按实际包围盒把模型缩放到 1.75 米左右，并让脚底贴地
             NormalizeScale(root, 1.75f);

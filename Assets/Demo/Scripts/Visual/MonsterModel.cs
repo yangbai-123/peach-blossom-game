@@ -123,7 +123,7 @@ public class VrmMonsterVisual : MonoBehaviour
         var model = Instantiate(MonsterModel.Template, transform);
         model.name = "MonsterModel";
         model.SetActive(true);
-        model.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
+        model.transform.localRotation = Quaternion.identity;
         model.transform.localPosition = Vector3.zero;
 
         MonsterModel.NormalizeScale(model, targetHeight);
