@@ -95,7 +95,9 @@ public class GameHUD : MonoBehaviour
             MobileInput.Enabled ? "点击屏幕开始" : "点击或按任意键开始", _body);
         _body.normal.textColor = c;
 
-        GUI.Label(new Rect(24f, h - 44f * _scale, 700f, 30f * _scale),
+        var hintRect = new Rect(16f, h - 52f * _scale, 780f, 42f * _scale);
+        DrawRect(hintRect, new Color(0f, 0f, 0f, 0.38f));
+        GUI.Label(new Rect(hintRect.x + 8f, hintRect.y + 4f, hintRect.width, hintRect.height),
             MobileInput.Enabled
                 ? "左下摇杆 移动　右侧拖动 视角　右上 视角切换"
                 : "WASD 移动　Shift 冲刺　空格 跳跃　左键 挥剑　V 视角　鼠标 视角", _small);
@@ -166,14 +168,18 @@ public class GameHUD : MonoBehaviour
             GUI.Label(new Rect(0f, h * 0.14f, w, 60f * _scale), "剑已离石，前往山巅", style);
         }
 
-        GUI.Label(new Rect(20f, h - 40f * _scale, 700f * _scale, 28f * _scale),
+        var playHintRect = new Rect(12f, h - 48f * _scale, 720f * _scale, 36f * _scale);
+        DrawRect(playHintRect, new Color(0f, 0f, 0f, 0.34f));
+        GUI.Label(new Rect(playHintRect.x + 8f, playHintRect.y + 3f, playHintRect.width, playHintRect.height),
             MobileInput.Enabled
                 ? "左下摇杆 移动　右侧拖动 视角　V/按钮 切换视角"
                 : "WASD 移动　Shift 冲刺　空格 跳跃　左键/J 挥剑　V 视角　鼠标 视角", _small);
 
         if (motor != null)
         {
-            GUI.Label(new Rect(w - 220f * _scale, h - 40f * _scale, 200f * _scale, 28f * _scale),
+            var speedRect = new Rect(w - 232f * _scale, h - 48f * _scale, 220f * _scale, 36f * _scale);
+            DrawRect(speedRect, new Color(0f, 0f, 0f, 0.34f));
+            GUI.Label(new Rect(speedRect.x + 8f, speedRect.y + 3f, speedRect.width, speedRect.height),
                 $"速度 {motor.HorizontalSpeed:0.0} m/s", _small);
         }
 

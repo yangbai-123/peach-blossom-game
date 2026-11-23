@@ -103,7 +103,21 @@ public class ThirdPersonCamera : MonoBehaviour
 
         if (firstPerson)
         {
-            Vector3 eye = target.position + Vector3.up * eyeHeight;
+            Vector3 chest = target.position + Vector3.up * (eyeHeight * 0.62f);
+            Vector3 head = target.position + Vector3.up * eyeHeight;
+            Vector3 eye = head;
+
+            // 贴墙回避：从胸口往头部方向做个球形检测，被挡住了就把镜头拉回胸口，
+            // 避免视角钻进石台/柱子内部
+            Vector3 dir = head - chest;
+            float dist = dir.magnitude;
+
+            if (dist > 0.01f &&
+                Physics.SphereCast(chest, 0.22f, dir.normalized, out RaycastHit fpHit,
+                    dist + 0.02f, ~0, QueryTriggerInteraction.Ignore))
+            {
+                eye = chest + dir.normalized * Mathf.Max(0.25f, fpHit.distance - 0.02f);
+            }
 
             // 指数平滑，避免跳跃时头部抖动
             float ft = 1f - Mathf.Exp(-24f * Time.deltaTime);
