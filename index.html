@@ -12,6 +12,26 @@
   #unity-container, #unity-fullscreen-container { width: 100% !important; height: 100% !important; }
   #unity-canvas { width: 100% !important; height: 100% !important; display: block; touch-action: none; }
   #unity-footer { display: none !important; }
+
+  /* 竖屏时把画布转 90°，让游戏以横屏比例显示。
+     不支持方向锁定的内置浏览器（比如从聊天软件里打开）靠这个兜底。
+     C# 侧会用 MobileOrientation.IsRotated 还原触摸坐标。 */
+  @media (orientation: portrait) {
+    #unity-container {
+      position: fixed !important;
+      left: 50% !important;
+      top: 50% !important;
+      width: 100vh !important;
+      height: 100vw !important;
+      margin: 0 !important;
+      transform: translate(-50%, -50%) rotate(-90deg) !important;
+      transform-origin: center center !important;
+    }
+    #unity-fullscreen-container, #unity-canvas {
+      width: 100% !important;
+      height: 100% !important;
+    }
+  }
 </style>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 </head>
