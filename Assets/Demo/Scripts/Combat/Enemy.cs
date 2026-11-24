@@ -51,6 +51,7 @@ public class Enemy : MonoBehaviour
     float _stateTimer;
     float _nextAttackTime;
     Vector3 _knockback;
+    float _stunUntil;
 
     void Awake()
     {
@@ -114,6 +115,14 @@ public class Enemy : MonoBehaviour
     {
         if (CurrentState == State.Dead) return;
         if (GameManager.Instance != null && !GameManager.Instance.CanPlayerMove) return;
+
+        // 被招架/重击后进入硬直，这段时间不动不出手
+        if (Time.time < _stunUntil)
+        {
+            ApplyGravity();
+            return;
+        }
+
         if (_target == null) return;
 
         float distance = Vector3.Distance(transform.position, _target.position);
@@ -235,6 +244,13 @@ public class Enemy : MonoBehaviour
     {
         if (_cc.isGrounded && _verticalVelocity < 0f) _verticalVelocity = -2f;
         _verticalVelocity += gravity * Time.deltaTime;
+    }
+
+    /// <summary>硬直：这段时间内 AI 不动作（招架惩罚 / 重击后摇）。</summary>
+    public void ApplyStun(float seconds)
+    {
+        if (seconds <= 0f) return;
+        _stunUntil = Mathf.Max(_stunUntil, Time.time + seconds);
     }
 
     /// <summary>受到攻击时的击退（由玩家战斗调用）。</summary>

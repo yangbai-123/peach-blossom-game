@@ -610,6 +610,22 @@ public class GameHUD : MonoBehaviour
         float barW = panelW - 24f * _scale;
         float barH = 12f * _scale;
 
+        // 气条 + 格挡状态（帧驱动战斗的反馈）
+        var combat = motor != null ? motor.GetComponent<PlayerCombat>() : null;
+        if (combat != null)
+        {
+            float meterY = barY + 22f * _scale;
+            DrawRect(new Rect(barX, meterY, barW, 8f * _scale), new Color(0f, 0f, 0f, 0.45f));
+
+            float mp = Mathf.Clamp01(combat.Meter / Mathf.Max(1f, combat.meterMax));
+            DrawRect(new Rect(barX, meterY, barW * mp, 8f * _scale), new Color(0.55f, 0.78f, 1f, 0.95f));
+
+            if (combat.IsGuarding)
+                GUI.Label(new Rect(barX, meterY + 12f * _scale, barW, 22f * _scale), "格挡中", _small);
+            else if (combat.Meter >= combat.meterMax)
+                GUI.Label(new Rect(barX, meterY + 12f * _scale, barW, 22f * _scale), "气满", _small);
+        }
+
         DrawRect(new Rect(barX, barY, barW, barH), new Color(0f, 0f, 0f, 0.55f));
 
         if (playerHealth != null)

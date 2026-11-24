@@ -16,6 +16,9 @@ public static class MobileInput
     /// <summary>是否处于冲刺（点击冲刺键切换）。</summary>
     public static bool Sprint;
 
+    /// <summary>格挡键按住状态（触屏按钮）</summary>
+    public static bool BlockHeld;
+
     /// <summary>这一帧视角转动的角度（度）。x 是偏航，y 是俯仰。</summary>
     public static Vector2 LookDelta;
 
@@ -26,6 +29,10 @@ public static class MobileInput
     public static void PressJump() => _jump = true;
     public static void PressAttack() => _attack = true;
     public static void PressViewToggle() => _viewToggle = true;
+
+    public static void PressBlock() => BlockHeld = true;
+
+    public static void ReleaseBlock() => BlockHeld = false;
 
     public static bool ConsumeJump()
     {

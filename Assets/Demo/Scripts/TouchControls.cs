@@ -54,6 +54,8 @@ public class TouchControls : MonoBehaviour
     // 按钮在屏幕上的位置（左上原点）
     Rect AttackRect, JumpRect, SprintRect, ViewRect;
 
+    int _blockFinger = -1;
+
     void Awake()
     {
         _circleTex = MakeCircleTexture(128);
@@ -171,7 +173,7 @@ public class TouchControls : MonoBehaviour
     {
         if (InRect(pos, AttackRect)) { MobileInput.PressAttack(); _buttonFinger = id; return; }
         if (InRect(pos, JumpRect)) { MobileInput.PressJump(); _buttonFinger = id; return; }
-        if (InRect(pos, SprintRect)) { MobileInput.Sprint = !MobileInput.Sprint; _buttonFinger = id; return; }
+        if (InRect(pos, SprintRect)) { MobileInput.PressBlock(); _blockFinger = id; return; }
         if (InRect(pos, ViewRect)) { MobileInput.PressViewToggle(); _buttonFinger = id; return; }
 
         if (_moveFinger < 0 && Vector2.Distance(pos, _baseCenter) <= baseRadius * 1.7f)
@@ -200,6 +202,9 @@ public class TouchControls : MonoBehaviour
             // GUI 坐标 y 向下，移动方向 y 向上，这里要翻转，
             // 否则推摇杆向上会往后退。
             MobileInput.Move = new Vector2(offset.x / baseRadius, -offset.y / baseRadius);
+
+            // 摇杆推满自动冲刺，省掉一个按钮
+            MobileInput.Sprint = MobileInput.Move.magnitude > 0.86f;
         }
         else if (id == _lookFinger && delta.sqrMagnitude > 0.25f)
         {
@@ -221,6 +226,12 @@ public class TouchControls : MonoBehaviour
 
         if (id == _lookFinger) _lookFinger = -1;
         if (id == _buttonFinger) _buttonFinger = -1;
+
+        if (id == _blockFinger)
+        {
+            _blockFinger = -1;
+            MobileInput.ReleaseBlock();
+        }
     }
 
     static bool InRect(Vector2 p, Rect r) => r.Contains(p);
@@ -245,8 +256,8 @@ public class TouchControls : MonoBehaviour
 
         DrawButton(AttackRect, "攻击", new Color(1f, 0.45f, 0.45f, 0.55f));
         DrawButton(JumpRect, "跳跃", new Color(0.5f, 0.75f, 1f, 0.5f));
-        DrawButton(SprintRect, "冲刺", MobileInput.Sprint
-            ? new Color(1f, 0.85f, 0.4f, 0.85f)
+        DrawButton(SprintRect, "格挡", MobileInput.BlockHeld
+            ? new Color(0.6f, 0.95f, 0.8f, 0.85f)
             : new Color(1f, 1f, 1f, 0.28f));
         DrawButton(ViewRect, "视角", new Color(0.75f, 0.85f, 1f, 0.45f));
     }

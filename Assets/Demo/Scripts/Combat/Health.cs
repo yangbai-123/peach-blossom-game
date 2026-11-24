@@ -54,12 +54,24 @@ public class Health : MonoBehaviour
     }
 
     /// <summary>
+    /// 伤害过滤器：在真正扣血前调用，返回实际承受的伤害。
+    /// 返回 0 表示完全免伤（招架），用来实现格挡 / 招架。
+    /// </summary>
+    public System.Func<float, Vector3, float> DamageFilter;
+
+    /// <summary>
     /// 扣血。返回是否真的生效（无敌中、已死亡会返回 false）。
     /// </summary>
     public bool TakeDamage(float amount, Vector3 fromPosition, float immuneWindow = -1f)
     {
         if (IsDead) return false;
         if (Time.time < _immuneUntil) return false;
+
+        if (DamageFilter != null)
+        {
+            amount = DamageFilter(amount, fromPosition);
+            if (amount <= 0f) return false;
+        }
 
         _immuneUntil = Time.time + (immuneWindow >= 0f ? immuneWindow : invulnerableTime);
 
