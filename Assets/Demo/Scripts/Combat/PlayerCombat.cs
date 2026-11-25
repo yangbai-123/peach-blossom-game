@@ -307,7 +307,6 @@ public class PlayerCombat : MonoBehaviour
     bool TryStartSuper()
     {
         if (!_superPressed) return false;
-        Debug.Log($"[super] try meter={meter:0} grounded={Grounded} phase={_phase} hitstun={_hitstunFrames}");
         if (meter < meterMax) return false;
         if (!Grounded) return false;
 
