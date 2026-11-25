@@ -7,6 +7,7 @@ public enum AttackKind
     Heavy,
     Air,
     Super,
+    Counter,
 }
 
 /// <summary>
@@ -94,6 +95,22 @@ public static class CombatFrames
 
     public const float RushSpeed = 9.5f;      // 米/秒，恒速
     public const int RushInvulnFrames = 2;
+
+    /// <summary>
+    /// 招架反击：招架成功后自动派生的一记横斩。
+    /// 起手极短（3 帧），用来惩罚招架成功后的对手。
+    /// </summary>
+    public static readonly AttackData Counter = new AttackData
+    {
+        kind = AttackKind.Counter,
+        startup = 3, active = 4, recover = 10,
+        dmg = 30f,
+        reach = 120f * Px,
+        y0 = 20f * Px, y1 = 150f * Px,
+        kb = 10f, stop = 8, stun = 26, bstun = 14, chain = 1, meter = 10f, lunge = 0f,
+    };
+
+    public const int CounterDelayFrames = 2;
 
     public static AttackData Get(AttackKind kind) => kind switch
     {

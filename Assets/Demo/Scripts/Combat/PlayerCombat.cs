@@ -83,6 +83,7 @@ public class PlayerCombat : MonoBehaviour
     bool _superPressed;
     int _hitstunFrames;
     bool _rushHitWall;
+    int _counterDelay;
     bool _guardPressedEdge;
     bool _guardHeld;
 
@@ -175,6 +176,16 @@ public class PlayerCombat : MonoBehaviour
             return;
         }
 
+        if (_counterDelay > 0)
+        {
+            if (--_counterDelay == 0 && _phase == Phase.Idle)
+            {
+                StartAttackData(CombatFrames.Counter);
+                Debug.Log("[combat] counter!");
+                return;
+            }
+        }
+
         switch (_phase)
         {
             case Phase.Idle:
@@ -260,11 +271,14 @@ public class PlayerCombat : MonoBehaviour
         return (_chain >= 2) ? AttackKind.Heavy : AttackKind.Light;
     }
 
-    void StartAttack(AttackKind kind)
+    void StartAttack(AttackKind kind) => StartAttackData(CombatFrames.Get(kind));
+
+    void StartAttackData(AttackData data)
     {
         if (_tiredUntilFrame > _globalFrame) return;
 
-        _attack = CombatFrames.Get(kind);
+        _attack = data;
+        var kind = data.kind;
         _phase = Phase.Startup;
         _frame = 0;
         _atkHit = false;
@@ -510,15 +524,20 @@ public class PlayerCombat : MonoBehaviour
     /// </summary>
     float FilterIncomingDamage(float amount, Vector3 fromPosition)
     {
-        Debug.Log($"[combat] incoming dmg={amount:0.#} guarding={IsGuarding} parryFrames={_parryFrames} phase={_phase}");
-
-        if (!IsGuarding) return amount;
-
         // 背后不能挡
         Vector3 to = fromPosition - transform.position;
         to.y = 0f;
-        if (to.sqrMagnitude > 0.001f && Vector3.Dot(transform.forward, to.normalized) < 0.15f)
+        bool facingAttacker = to.sqrMagnitude <= 0.001f || Vector3.Dot(transform.forward, to.normalized) >= 0.15f;
+
+        if (!IsGuarding || !facingAttacker)
+        {
+            // 没挡住：进受击硬直，正在出的招被打断
+            _hitstunFrames = 14;
+            if (_phase == Phase.Startup || _phase == Phase.Active || _phase == Phase.Recover || _phase == Phase.Super)
+                _phase = Phase.Idle;
+
             return amount;
+        }
 
         // 招架：按下格挡后 10 帧内挨打
         if (_parryFrames > 0)
@@ -538,18 +557,16 @@ public class PlayerCombat : MonoBehaviour
                 }
             }
 
+            // 招架成功后自动派生一记横斩（刀盾型的反击）
+            _counterDelay = CombatFrames.CounterDelayFrames;
+
             Parried?.Invoke(fromPosition);
             Sfx.Play(Sfx.Hit, 1f, 0.7f);
             Debug.Log("[combat] parry!");
             return 0f;
         }
 
-        // 被打中：进入受击硬直，正在出的招被打断
-        _hitstunFrames = 14;
-        if (_phase == Phase.Startup || _phase == Phase.Active || _phase == Phase.Recover || _phase == Phase.Super)
-            _phase = Phase.Idle;
-
-        // 普通格挡：6% 伤害，且永远打不死
+        // 普通格挡：6% 伤害，且永远打不死；格挡不走受击硬直
         float chip = Mathf.Min(_health.Current - 1f, amount * 0.06f);
         chip = Mathf.Max(0f, chip);
 
