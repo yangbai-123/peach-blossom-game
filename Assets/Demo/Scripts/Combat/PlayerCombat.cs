@@ -59,7 +59,7 @@ public class PlayerCombat : MonoBehaviour
     public event System.Action<Vector3> Blocked;
     public event System.Action<Vector3> Parried;
 
-    enum Phase { Idle, Startup, Active, Recover, GuardStun, Tired }
+    enum Phase { Idle, Startup, Active, Recover, Super, GuardStun, Tired }
 
     enum Queued { None, Light, Heavy }
 
@@ -80,6 +80,9 @@ public class PlayerCombat : MonoBehaviour
     Queued _buffer = Queued.None;
 
     bool _attackPressed;
+    bool _superPressed;
+    int _hitstunFrames;
+    bool _rushHitWall;
     bool _guardPressedEdge;
     bool _guardHeld;
 
@@ -123,11 +126,15 @@ public class PlayerCombat : MonoBehaviour
         _guardHeld = Input.GetMouseButton(1) || Input.GetKey(KeyCode.K) ||
                      (MobileInput.Enabled && MobileInput.BlockHeld);
 
+        if (Input.GetKeyDown(KeyCode.Q) || (MobileInput.Enabled && MobileInput.ConsumeSuper()))
+            _superPressed = true;
+
         // 顿帧期间不推进，也丢掉这一帧的输入（与参考实现一致）
         if (HitStop.Frozen)
         {
             _attackPressed = false;
             _guardPressedEdge = false;
+            _superPressed = false;
             return;
         }
 
@@ -142,6 +149,7 @@ public class PlayerCombat : MonoBehaviour
 
             _attackPressed = false;
             _guardPressedEdge = false;
+            _superPressed = false;
         }
     }
 
@@ -159,12 +167,25 @@ public class PlayerCombat : MonoBehaviour
             _bufferFrames = bufferFrames;
         }
 
+        // 受击硬直：这段时间不能做任何动作
+        if (_hitstunFrames > 0)
+        {
+            _hitstunFrames--;
+            if (_phase != Phase.Idle && _phase != Phase.GuardStun) _phase = Phase.Idle;
+            return;
+        }
+
         switch (_phase)
         {
             case Phase.Idle:
                 TickGuard();
+                if (TryStartSuper()) break;
                 TryStartFromInput();
                 TryConsumeBuffer();
+                break;
+
+            case Phase.Super:
+                TickSuper();
                 break;
 
             case Phase.Startup:
@@ -264,6 +285,77 @@ public class PlayerCombat : MonoBehaviour
             new Color(0.88f, 0.93f, 1f));
 
         Swung?.Invoke(_chain);
+    }
+
+    // ---------------------------------------------------------------- 必杀
+
+    /// <summary>气满时按 Q / 触屏「必杀」发动突进。</summary>
+    bool TryStartSuper()
+    {
+        if (!_superPressed) return false;
+        if (meter < meterMax) return false;
+        if (!Grounded) return false;
+
+        meter = 0f;
+        _attack = CombatFrames.Rush;
+        _phase = Phase.Super;
+        _frame = 0;
+        _atkHit = false;
+        _atkBlocked = false;
+        _hitThisAttack.Clear();
+        _rushHitWall = false;
+
+        // 前 2 帧无敌
+        _health.SetInvulnerable(CombatFrames.RushInvulnFrames / CombatFrames.Fps + 0.02f);
+
+        Sfx.Play(Sfx.Swing, 1f, 0.7f);
+        Fx.SwingArc(transform.position + transform.forward * 0.8f, transform.forward,
+            new Color(1f, 0.75f, 0.45f));
+
+        Debug.Log("[combat] super rush start");
+        return true;
+    }
+
+    void TickSuper()
+    {
+        _frame++;
+        SwingProgress = Mathf.Clamp01(_frame / (float)Mathf.Max(1, _attack.TotalFrames));
+
+        // 前 2 帧保持无敌
+        if (_frame <= CombatFrames.RushInvulnFrames)
+            _health.SetInvulnerable(1.5f / CombatFrames.Fps);
+
+        // 恒速前冲（不受惯性影响）
+        bool moving = _frame > 1 && _frame <= _attack.ActiveEnd;
+        if (moving && _cc != null)
+        {
+            Vector3 before = transform.position;
+            _cc.Move(transform.forward * (CombatFrames.RushSpeed / CombatFrames.Fps));
+
+            // 位移被吃掉说明撞墙
+            if ((transform.position - before).sqrMagnitude < 0.0004f)
+            {
+                _rushHitWall = true;
+                EndSuper();
+                return;
+            }
+        }
+
+        if (_frame >= _attack.ActiveStart && _frame <= _attack.ActiveEnd)
+            CheckHits();
+
+        // 命中或撞墙都提前结束
+        if (_atkHit && _frame > _attack.ActiveStart) { EndSuper(); return; }
+        if (_frame >= _attack.TotalFrames) EndSuper();
+    }
+
+    void EndSuper()
+    {
+        _phase = Phase.Idle;
+        _frame = 0;
+        _chain = 0;
+        SwingProgress = 0f;
+        Debug.Log($"[combat] super end wall={_rushHitWall} hit={_atkHit}");
     }
 
     void TickAttack()
@@ -367,7 +459,7 @@ public class PlayerCombat : MonoBehaviour
             if (health.GetComponent<RemotePlayer>() != null)
                 NetDuel.Instance?.ReportHit(dmg);
 
-            Debug.Log($"[combat] hit {health.name} dmg={dmg:0.#} frame={_frame} chain={_chain}");
+            Debug.Log($"[combat] hit {health.name} dmg={dmg:0.#} frame={_frame} chain={_chain} meter={meter:0}");
 
             HitStop.Freeze(_attack.stop);
 
@@ -379,7 +471,7 @@ public class PlayerCombat : MonoBehaviour
             if (enemy != null)
             {
                 enemy.ApplyKnockback(transform.forward, _attack.kb);
-                enemy.ApplyStun(_attack.stop / CombatFrames.Fps + 0.18f);
+                enemy.ApplyStun(_attack.stun / CombatFrames.Fps);
             }
         }
     }
@@ -451,6 +543,11 @@ public class PlayerCombat : MonoBehaviour
             Debug.Log("[combat] parry!");
             return 0f;
         }
+
+        // 被打中：进入受击硬直，正在出的招被打断
+        _hitstunFrames = 14;
+        if (_phase == Phase.Startup || _phase == Phase.Active || _phase == Phase.Recover || _phase == Phase.Super)
+            _phase = Phase.Idle;
 
         // 普通格挡：6% 伤害，且永远打不死
         float chip = Mathf.Min(_health.Current - 1f, amount * 0.06f);

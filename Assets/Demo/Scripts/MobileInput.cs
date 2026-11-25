@@ -23,6 +23,7 @@ public static class MobileInput
     public static Vector2 LookDelta;
 
     static bool _jump;
+    static bool _super;
     static bool _attack;
     static bool _viewToggle;
 
@@ -31,6 +32,15 @@ public static class MobileInput
     public static void PressViewToggle() => _viewToggle = true;
 
     public static void PressBlock() => BlockHeld = true;
+
+    public static void PressSuper() => _super = true;
+
+    public static bool ConsumeSuper()
+    {
+        if (!_super) return false;
+        _super = false;
+        return true;
+    }
 
     public static void ReleaseBlock() => BlockHeld = false;
 

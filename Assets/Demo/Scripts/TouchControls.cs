@@ -52,7 +52,7 @@ public class TouchControls : MonoBehaviour
     }
 
     // 按钮在屏幕上的位置（左上原点）
-    Rect AttackRect, JumpRect, SprintRect, ViewRect;
+    Rect AttackRect, JumpRect, SprintRect, ViewRect, SuperRect;
 
     int _blockFinger = -1;
 
@@ -83,6 +83,7 @@ public class TouchControls : MonoBehaviour
         JumpRect = new Rect(Screen.width - 290f * s, Screen.height - 130f * s, 96f * s, 96f * s);
         SprintRect = new Rect(Screen.width - 160f * s, Screen.height - 320f * s, 88f * s, 88f * s);
         ViewRect = new Rect(Screen.width - 112f * s, 24f * s, 88f * s, 88f * s);
+        SuperRect = new Rect(Screen.width - 300f * s, Screen.height - 290f * s, 92f * s, 92f * s);
 
         baseRadius = 92f * s;
         knobRadius = 42f * s;
@@ -175,6 +176,7 @@ public class TouchControls : MonoBehaviour
         if (InRect(pos, JumpRect)) { MobileInput.PressJump(); _buttonFinger = id; return; }
         if (InRect(pos, SprintRect)) { MobileInput.PressBlock(); _blockFinger = id; return; }
         if (InRect(pos, ViewRect)) { MobileInput.PressViewToggle(); _buttonFinger = id; return; }
+        if (InRect(pos, SuperRect)) { MobileInput.PressSuper(); _buttonFinger = id; return; }
 
         if (_moveFinger < 0 && Vector2.Distance(pos, _baseCenter) <= baseRadius * 1.7f)
         {
@@ -260,6 +262,13 @@ public class TouchControls : MonoBehaviour
             ? new Color(0.6f, 0.95f, 0.8f, 0.85f)
             : new Color(1f, 1f, 1f, 0.28f));
         DrawButton(ViewRect, "视角", new Color(0.75f, 0.85f, 1f, 0.45f));
+
+        var combat = FindFirstObjectByType<PlayerCombat>();
+        bool ready = combat != null && combat.Meter >= combat.meterMax;
+
+        DrawButton(SuperRect, "必杀", ready
+            ? new Color(1f, 0.75f, 0.3f, 0.9f)
+            : new Color(1f, 1f, 1f, 0.18f));
     }
 
     void DrawButton(Rect r, string text, Color color)

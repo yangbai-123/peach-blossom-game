@@ -6,6 +6,7 @@ public enum AttackKind
     Light,
     Heavy,
     Air,
+    Super,
 }
 
 /// <summary>
@@ -29,6 +30,8 @@ public struct AttackData
     public float y1;        // 判定框上沿
     public float kb;        // 击退
     public int stop;        // 命中顿帧
+    public int stun;        // 受击硬直帧
+    public int bstun;       // 格挡硬直帧
     public int chain;       // 可接连段数
     public float meter;     // 命中回气
     public float lunge;     // 前冲
@@ -51,7 +54,7 @@ public static class CombatFrames
         dmg = 18f,
         reach = 108f * Px,
         y0 = 40f * Px, y1 = 150f * Px,
-        kb = 5f, stop = 5, chain = 4, meter = 7f, lunge = 0.6f,
+        kb = 5f, stop = 5, stun = 17, bstun = 9, chain = 4, meter = 7f, lunge = 0.6f,
     };
 
     public static readonly AttackData Heavy = new AttackData
@@ -61,7 +64,7 @@ public static class CombatFrames
         dmg = 32f,
         reach = 128f * Px,
         y0 = 20f * Px, y1 = 140f * Px,
-        kb = 8f, stop = 9, chain = 4, meter = 12f, lunge = 1.2f,
+        kb = 8f, stop = 9, stun = 24, bstun = 13, chain = 4, meter = 12f, lunge = 1.2f,
     };
 
     // 空中攻击：y0 为负，能打到比自身更低的目标
@@ -72,8 +75,25 @@ public static class CombatFrames
         dmg = 22f,
         reach = 128f * Px,
         y0 = -40f * Px, y1 = 120f * Px,
-        kb = 6f, stop = 6, chain = 1, meter = 8f, lunge = 0f,
+        kb = 6f, stop = 6, stun = 20, bstun = 11, chain = 1, meter = 8f, lunge = 0f,
     };
+
+    /// <summary>
+    /// 必杀「突进」：恒速冲刺，前 2 帧无敌，撞墙或命中即结束。
+    /// len 同时是时长和距离（spd × len）。
+    /// </summary>
+    public static readonly AttackData Rush = new AttackData
+    {
+        kind = AttackKind.Super,
+        startup = 6, active = 30, recover = 14,
+        dmg = 46f,
+        reach = 118f * Px,
+        y0 = 10f * Px, y1 = 150f * Px,
+        kb = 12f, stop = 12, stun = 34, bstun = 20, chain = 1, meter = 0f, lunge = 0f,
+    };
+
+    public const float RushSpeed = 9.5f;      // 米/秒，恒速
+    public const int RushInvulnFrames = 2;
 
     public static AttackData Get(AttackKind kind) => kind switch
     {

@@ -46,6 +46,13 @@ public class Health : MonoBehaviour
         Changed?.Invoke(Current, maxHealth);
     }
 
+    /// <summary>给一段无敌时间（必杀突进的前几帧）。</summary>
+    public void SetInvulnerable(float seconds)
+    {
+        if (seconds <= 0f) return;
+        _immuneUntil = Mathf.Max(_immuneUntil, Time.time + seconds);
+    }
+
     /// <summary>直接设置当前血量（联机同步远端血量用）。</summary>
     public void SetCurrent(float value)
     {
