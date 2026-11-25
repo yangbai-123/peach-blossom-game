@@ -65,6 +65,49 @@ public class GameHUD : MonoBehaviour
         }
 
         DrawOrientationHint();
+        DrawCombatFx();
+    }
+
+    /// <summary>招架闪光 / 必杀横幅。</summary>
+    void DrawCombatFx()
+    {
+        float w = Screen.width;
+        float h = Screen.height;
+
+        // 招架：金色边缘闪光
+        float parry = CombatFx.ParryAlpha;
+        if (parry > 0.01f)
+        {
+            var gold = new Color(1f, 0.86f, 0.45f, parry * 0.55f);
+            DrawRect(new Rect(0f, 0f, w, h * 0.06f), gold);
+            DrawRect(new Rect(0f, h * 0.94f, w, h * 0.06f), gold);
+            DrawRect(new Rect(0f, 0f, w * 0.03f, h), gold);
+            DrawRect(new Rect(w * 0.97f, 0f, w * 0.03f, h), gold);
+
+            var style = new GUIStyle(_title) { alignment = TextAnchor.MiddleCenter };
+            var c = style.normal.textColor;
+            style.normal.textColor = new Color(c.r, c.g, c.b, parry);
+            GUI.Label(new Rect(0f, h * 0.42f, w, 80f * _scale), "招 架", style);
+        }
+
+        // 必杀：橙色横幅从两侧滑入
+        float super = CombatFx.SuperAlpha;
+        if (super > 0.01f)
+        {
+            float slide = CombatFx.SuperSlide;
+            float bandH = h * 0.16f;
+            float y = h * 0.40f;
+            float half = w * 0.5f * slide;
+
+            var orange = new Color(0.95f, 0.55f, 0.20f, super * 0.82f);
+            DrawRect(new Rect(w * 0.5f - half, y, half, bandH), orange);
+            DrawRect(new Rect(w * 0.5f, y, half, bandH), orange);
+
+            var band = new GUIStyle(_title) { alignment = TextAnchor.MiddleCenter };
+            var c2 = band.normal.textColor;
+            band.normal.textColor = new Color(1f, 0.97f, 0.9f, super);
+            GUI.Label(new Rect(0f, y + bandH * 0.28f, w, bandH * 0.6f), "必 杀 · 突 进", band);
+        }
     }
 
     /// <summary>竖屏提示已停用：竖屏可以直接游玩，不再引导用户旋转。</summary>

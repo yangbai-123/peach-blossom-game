@@ -307,6 +307,7 @@ public class PlayerCombat : MonoBehaviour
     bool TryStartSuper()
     {
         if (!_superPressed) return false;
+        Debug.Log($"[super] try meter={meter:0} grounded={Grounded} phase={_phase} hitstun={_hitstunFrames}");
         if (meter < meterMax) return false;
         if (!Grounded) return false;
 
@@ -325,6 +326,9 @@ public class PlayerCombat : MonoBehaviour
         Sfx.Play(Sfx.Swing, 1f, 0.7f);
         Fx.SwingArc(transform.position + transform.forward * 0.8f, transform.forward,
             new Color(1f, 0.75f, 0.45f));
+
+        CombatFx.SuperCutin();
+        HitStop.Freeze(6);
 
         Debug.Log("[combat] super rush start");
         return true;
@@ -560,6 +564,7 @@ public class PlayerCombat : MonoBehaviour
             // 招架成功后自动派生一记横斩（刀盾型的反击）
             _counterDelay = CombatFrames.CounterDelayFrames;
 
+            CombatFx.Parry();
             Parried?.Invoke(fromPosition);
             Sfx.Play(Sfx.Hit, 1f, 0.7f);
             Debug.Log("[combat] parry!");
